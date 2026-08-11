@@ -2,10 +2,19 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any
 
 
 DEFAULT_PROMPT_TEMPLATE = "Feature={{feature}}\nDocs={{docs}}\nQuestion={{message}}"
+PROMPT_TEMPLATES: dict[str, str] = {
+    "v1": DEFAULT_PROMPT_TEMPLATE,
+    "v2": (
+        "Feature={{feature}}\n"
+        "Instruction=Answer only from the supplied documents; say when evidence is missing.\n"
+        "Docs={{docs}}\n"
+        "Question={{message}}"
+    ),
+}
+DEFAULT_VERSION_BY_LABEL = {"production": "v1", "canary": "v2"}
 
 
 @dataclass(frozen=True)
@@ -14,76 +23,46 @@ class ResolvedPrompt:
     name: str
     label: str
     version: str
-    source: str
-    managed_prompt: Any | None = None
-    fetch_error: str | None = None
+    source: str = "local"
 
 
-def _compile_local_prompt(*, feature: str, docs: list[str], message: str) -> str:
+def _compile_prompt(
+    template: str, *, feature: str, docs: list[str], message: str
+) -> str:
     return (
-        DEFAULT_PROMPT_TEMPLATE.replace("{{feature}}", feature)
+        template.replace("{{feature}}", feature)
         .replace("{{docs}}", "\n".join(docs))
         .replace("{{message}}", message)
     )
 
 
 def resolve_prompt(
-    client: Any,
     *,
     feature: str,
     docs: list[str],
     message: str,
-    enabled: bool,
+    name: str | None = None,
+    label: str | None = None,
+    version: str | None = None,
 ) -> ResolvedPrompt:
-    name = os.getenv("LANGFUSE_PROMPT_NAME", "day13-chat")
-    label = os.getenv("LANGFUSE_PROMPT_LABEL", "production")
-    text = _compile_local_prompt(feature=feature, docs=docs, message=message)
-    if enabled:
-        try:
-            managed_prompt = client.get_prompt(
-                name,
-                label=label,
-                type="text",
-                fallback=DEFAULT_PROMPT_TEMPLATE,
-                cache_ttl_seconds=60,
-                fetch_timeout_seconds=2,
-                max_retries=0,
-            )
-            if getattr(managed_prompt, "is_fallback", False):
-                return ResolvedPrompt(
-                    text=text,
-                    name=name,
-                    label=label,
-                    version="local-v1",
-                    source="local-fallback",
-                    fetch_error="LangfuseFallback",
-                )
-            return ResolvedPrompt(
-                text=managed_prompt.compile(
-                    feature=feature,
-                    docs="\n".join(docs),
-                    message=message,
-                ),
-                name=name,
-                label=label,
-                version=str(managed_prompt.version),
-                source="langfuse",
-                managed_prompt=managed_prompt,
-            )
-        except Exception as exc:  # Langfuse là dependency ngoài; app phải có fallback local
-            return ResolvedPrompt(
-                text=text,
-                name=name,
-                label=label,
-                version="local-v1",
-                source="local-fallback",
-                fetch_error=type(exc).__name__,
-            )
+    resolved_name = name or os.getenv("PROMPT_NAME", "day13-chat")
+    resolved_label = label or os.getenv("PROMPT_LABEL", "production")
+    resolved_version = version or os.getenv("PROMPT_VERSION")
+    if not resolved_version:
+        resolved_version = DEFAULT_VERSION_BY_LABEL.get(resolved_label, "v1")
+
+    template = PROMPT_TEMPLATES.get(resolved_version)
+    if template is None:
+        supported = ", ".join(sorted(PROMPT_TEMPLATES))
+        raise ValueError(
+            f"Unsupported prompt version: {resolved_version}. Supported versions: {supported}"
+        )
 
     return ResolvedPrompt(
-        text=text,
-        name=name,
-        label=label,
-        version="local-v1",
-        source="local",
+        text=_compile_prompt(
+            template, feature=feature, docs=docs, message=message
+        ),
+        name=resolved_name,
+        label=resolved_label,
+        version=resolved_version,
     )

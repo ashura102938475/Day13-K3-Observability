@@ -1,0 +1,30 @@
+groups:
+  - name: day13-slo-alerts
+    rules:
+      - alert: Lab13LatencyP95SLOBreach
+        expr: histogram_quantile(0.95, sum by (le) (rate(lab13_chat_request_duration_seconds_bucket{route="/chat"}[5m]))) * 1000 > 3000
+        labels:
+          severity: critical
+          owner: observability-team
+        annotations:
+          summary: Chat P95 latency exceeds the 3000 ms SLO objective
+          runbook: docs/alerts.md#alert-1
+
+      - alert: Lab13ErrorRateSLOBreach
+        expr: 100 * sum(rate(lab13_chat_errors_total{route="/chat"}[5m])) / clamp_min(sum(rate(lab13_chat_requests_total{route="/chat"}[5m])), 0.000001) > 2
+        labels:
+          severity: critical
+          owner: observability-team
+        annotations:
+          summary: Chat error rate exceeds the 2 percent SLO objective
+          runbook: docs/alerts.md#alert-2
+
+      - alert: Lab13DailyCostSLOBreach
+        expr: sum(increase(lab13_llm_cost_usd_total[24h])) > 2.5
+        labels:
+          severity: warning
+          owner: observability-team
+        annotations:
+          summary: Daily LLM cost exceeds the 2.5 USD SLO objective
+          runbook: docs/alerts.md#alert-3
+

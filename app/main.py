@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
@@ -9,12 +10,12 @@ from structlog.contextvars import bind_contextvars
 from .agent import LabAgent
 from .incidents import disable, enable, status
 from .logging_config import configure_logging, get_logger
-from .metrics import record_error, snapshot
+from .metrics import record_error
 from .middleware import CorrelationIdMiddleware
 from .pii import hash_user_id, summarize_text
-from .observability import get_prometheus_metrics, init_observability
+from .observability import force_flush_traces, get_prometheus_metrics, init_observability
 from .schemas import ChatRequest, ChatResponse
-from .tracing import tracing_enabled
+from .tracing import set_current_span_attributes, tracing_enabled
 
 configure_logging()
 log = get_logger()
@@ -33,6 +34,11 @@ async def startup() -> None:
         correlation_id="system",
         payload={"tracing_enabled": tracing_enabled()},
     )
+
+
+@app.on_event("shutdown")
+async def shutdown() -> None:
+    force_flush_traces()
 
 
 @app.get("/health")
@@ -54,7 +60,16 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
         model=agent.model,
         env=os.getenv("APP_ENV", "dev"),
     )
+    set_current_span_attributes(
+        {
+            "correlation_id": request.state.correlation_id,
+            "http.route": "/chat",
+            "feature": body.feature,
+            "llm.model": agent.model,
+        }
+    )
 
+    request_started = time.perf_counter()
     log.info(
         "request_received",
         service="api",
@@ -66,6 +81,19 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
             feature=body.feature,
             session_id=body.session_id,
             message=body.message,
+        )
+        set_current_span_attributes(
+            {
+                "prompt_name": result.prompt_name,
+                "prompt_label": result.prompt_label,
+                "prompt_version": result.prompt_version,
+                "rag.result_count": result.rag_result_count,
+                "llm.tokens.input": result.tokens_in,
+                "llm.tokens.output": result.tokens_out,
+                "llm.cost_usd": result.cost_usd,
+                "quality.score": result.quality_score,
+                "status": "ok",
+            }
         )
         log.info(
             "response_sent",
@@ -88,7 +116,11 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
         )
     except Exception as exc:  # pragma: no cover
         error_type = type(exc).__name__
-        record_error(error_type)
+        latency_ms = int((time.perf_counter() - request_started) * 1000)
+        record_error(error_type, latency_ms=latency_ms)
+        set_current_span_attributes(
+            {"status": "error", "error_type": error_type, "latency_ms": latency_ms}
+        )
         log.error(
             "request_failed",
             service="api",

@@ -1,0 +1,10 @@
+Grafana provisioning files and the six-panel dashboard JSON are complete and validated.
+
+Runtime blocker:
+- docker pull grafana/grafana:latest
+- Error: Get "https://registry-1.docker.io/v2/": context deadline exceeded
+- A second pull using grafana/grafana:11.6.0 timed out after 184 seconds.
+- No Grafana image was available in the local Docker cache.
+- The browser runtime list was empty, so UI screenshots could not be captured.
+
+Jaeger and Prometheus containers are running successfully. This blocker affects only Grafana runtime verification/screenshot.

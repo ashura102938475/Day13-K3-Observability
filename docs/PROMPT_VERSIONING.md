@@ -1,40 +1,28 @@
-# Prompt versioning cơ bản
+# Prompt versioning provider-neutral
 
-Mục tiêu của phần này là biết một request đã dùng prompt nào và có thể rollback an toàn. Đây không phải bài tối ưu prompt hoặc A/B testing.
+Mục tiêu là truy ra request đã dùng prompt nào và rollback an toàn, không phụ thuộc một observability provider cụ thể.
 
 ## Prompt contract
 
-Tạo text prompt tên `day13-chat` trên Langfuse. Prompt phải giữ ba biến:
-
-```text
-Feature={{feature}}
-Docs={{docs}}
-Question={{message}}
-```
-
-App lấy prompt theo hai biến môi trường:
+Prompt `day13-chat` giữ ba biến `feature`, `docs`, `message`. Runtime chỉ ghi name, label, version và source vào trace; không ghi template đã compile, document hoặc message.
 
 ```dotenv
-LANGFUSE_PROMPT_NAME=day13-chat
-LANGFUSE_PROMPT_LABEL=production
+PROMPT_NAME=day13-chat
+PROMPT_LABEL=production
+PROMPT_VERSION=v1
 ```
 
-Nếu Langfuse không khả dụng, app dùng template local và trace metadata ghi `prompt_source=local` hoặc `local-fallback` thay vì giả vờ đã lấy được prompt managed.
+Các version nằm trong registry cục bộ ở `app/prompt_management.py`:
 
-## Việc cần làm
+- `v1`: baseline, label `production`.
+- `v2`: candidate có chỉ dẫn grounding rõ hơn, label `canary`.
 
-1. Tạo version 1, gắn labels `baseline` và `production`.
-2. Tạo version 2 với một thay đổi nhỏ về format hoặc độ dài câu trả lời, gắn label `candidate`.
-3. Chạy cùng một input với `LANGFUSE_PROMPT_LABEL=baseline` và `candidate`.
-4. Mở hai trace, kiểm tra `prompt_name`, `prompt_label`, `prompt_version` và prompt link.
-5. Chuyển label `production` sang version 2, chạy lại một request.
-6. Rollback `production` về version 1 và lưu ảnh evidence.
+Version không tồn tại làm request thất bại rõ ràng bằng `ValueError`; app không âm thầm đổi version.
 
-Không chấm prompt nào “hay hơn”. Điểm nằm ở khả năng truy xuất version, đổi label và rollback có bằng chứng.
+## Quy trình lấy evidence
 
-## Evidence
-
-- Một ảnh danh sách hai prompt version.
-- Hai trace ID chứng minh hai version/label khác nhau.
-- Một ảnh trước/sau khi đổi label hoặc rollback `production`.
-- Ghi các ID và đường dẫn ảnh vào `submission/REPORT.md`.
+1. Chạy API với `PROMPT_LABEL=production`, `PROMPT_VERSION=v1`, gửi một request và lưu trace ID.
+2. Khởi động lại API với `PROMPT_LABEL=canary`, `PROMPT_VERSION=v2`, gửi cùng input và lưu trace ID.
+3. Mở hai trace, kiểm tra `prompt_name`, `prompt_label`, `prompt_version` trên `agent.run`, `prompt.resolve`, `llm.generate`.
+4. Rollback bằng `PROMPT_LABEL=production`, `PROMPT_VERSION=v1`, gửi lại request và lưu trace ID thứ ba.
+5. Ghi các trace ID và evidence vào `submission/REPORT.md`.

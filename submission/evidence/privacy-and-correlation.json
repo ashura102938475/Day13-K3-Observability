@@ -1,0 +1,15 @@
+{
+  "trace_payload_scan": {
+    "email_leak": false,
+    "phone_leak": false,
+    "credit_card_leak": false,
+    "raw_prompt_leak": false,
+    "raw_response_leak": false
+  },
+  "correlation_examples": [
+    {"correlation_id": "req-98064116", "trace_id": "6ed80ae7d0b1ed14b25015be5e7f1c64", "log_events": ["request_received", "response_sent"]},
+    {"correlation_id": "req-prompt-v2", "trace_id": "6e73bc90b9063a8db1eda1b31a602402", "log_events": ["request_received", "response_sent"]},
+    {"correlation_id": "req-prompt-rollback", "trace_id": "449681b6cc761cc23d62b4c24627842b", "log_events": ["request_received", "response_sent"]},
+    {"correlation_id": "req-error-evidence", "log_events": ["request_received", "request_failed"], "error_type": "RuntimeError"}
+  ]
+}

@@ -11,19 +11,55 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
+from .tracing import tracing_enabled
+
+
+_provider: TracerProvider | None = None
+
+
+def _as_bool(value: str, *, default: bool) -> bool:
+    normalized = value.strip().lower()
+    if not normalized:
+        return default
+    return normalized in {"1", "true", "yes", "on"}
+
 
 def init_observability(app: FastAPI) -> None:
-    service_name = os.getenv("OTEL_SERVICE_NAME", "ai-observability-api")
-    otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+    global _provider
 
-    resource = Resource.create(attributes={SERVICE_NAME: service_name})
-    provider = TracerProvider(resource=resource)
-    exporter = OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True)
-    processor = BatchSpanProcessor(exporter)
-    provider.add_span_processor(processor)
-    trace.set_tracer_provider(provider)
+    if tracing_enabled() and _provider is None:
+        service_name = os.getenv("OTEL_SERVICE_NAME", "day13-observability-lab")
+        otlp_endpoint = os.getenv(
+            "OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"
+        )
+        insecure = _as_bool(
+            os.getenv("OTEL_EXPORTER_OTLP_INSECURE", "true"), default=True
+        )
 
-    FastAPIInstrumentor.instrument_app(app)
+        current_provider = trace.get_tracer_provider()
+        if isinstance(current_provider, TracerProvider):
+            _provider = current_provider
+        else:
+            _provider = TracerProvider(
+                resource=Resource.create(attributes={SERVICE_NAME: service_name})
+            )
+            trace.set_tracer_provider(_provider)
+
+        exporter = OTLPSpanExporter(endpoint=otlp_endpoint, insecure=insecure)
+        _provider.add_span_processor(BatchSpanProcessor(exporter))
+
+    if not getattr(app.state, "otel_fastapi_instrumented", False):
+        FastAPIInstrumentor.instrument_app(
+            app,
+            excluded_urls="/health,/metrics",
+        )
+        app.state.otel_fastapi_instrumented = True
+
+
+def force_flush_traces(timeout_millis: int = 5000) -> bool:
+    if _provider is None:
+        return True
+    return bool(_provider.force_flush(timeout_millis=timeout_millis))
 
 
 def get_prometheus_metrics() -> Response:

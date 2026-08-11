@@ -1,37 +1,58 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from contextlib import contextmanager
+from typing import Any, Iterator
 
-try:
-    from langfuse import get_client, observe
-
-    LANGFUSE_SDK_AVAILABLE = True
-except ImportError:  # pragma: no cover - chỉ dùng khi chưa cài requirements
-    LANGFUSE_SDK_AVAILABLE = False
-
-    def observe(*args: Any, **kwargs: Any):
-        def decorator(func):
-            return func
-
-        return decorator
-
-    class _DummyClient:
-        def update_current_trace(self, **kwargs: Any) -> None:
-            return None
-
-        def update_current_generation(self, **kwargs: Any) -> None:
-            return None
-
-    def get_client():
-        return _DummyClient()
+from opentelemetry import trace
+from opentelemetry.trace import Span, Status, StatusCode
+from structlog.contextvars import get_contextvars
 
 
-def get_langfuse_client():
-    return get_client()
+TRACER_NAME = "day13-observability"
+_DISABLED_VALUES = {"1", "true", "yes", "on"}
 
 
 def tracing_enabled() -> bool:
-    return LANGFUSE_SDK_AVAILABLE and bool(
-        os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY")
-    )
+    return os.getenv("OTEL_SDK_DISABLED", "false").strip().lower() not in _DISABLED_VALUES
+
+
+def get_tracer() -> trace.Tracer:
+    return trace.get_tracer(TRACER_NAME)
+
+
+def correlation_attributes() -> dict[str, str]:
+    correlation_id = get_contextvars().get("correlation_id")
+    return {"correlation_id": str(correlation_id)} if correlation_id else {}
+
+
+def set_span_attributes(span: Span, attributes: dict[str, Any]) -> None:
+    if not span.is_recording():
+        return
+    for key, value in attributes.items():
+        if value is not None:
+            span.set_attribute(key, value)
+
+
+def set_current_span_attributes(attributes: dict[str, Any]) -> None:
+    set_span_attributes(trace.get_current_span(), {**correlation_attributes(), **attributes})
+
+
+def mark_span_error(span: Span, exc: BaseException) -> None:
+    if not span.is_recording():
+        return
+    span.record_exception(exc)
+    span.set_attribute("status", "error")
+    span.set_attribute("error_type", type(exc).__name__)
+    span.set_status(Status(StatusCode.ERROR, type(exc).__name__))
+
+
+@contextmanager
+def start_span(name: str, attributes: dict[str, Any] | None = None) -> Iterator[Span]:
+    safe_attributes = {**correlation_attributes(), **(attributes or {})}
+    with get_tracer().start_as_current_span(name, attributes=safe_attributes) as span:
+        try:
+            yield span
+        except Exception as exc:
+            mark_span_error(span, exc)
+            raise

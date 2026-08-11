@@ -1,59 +1,72 @@
 from __future__ import annotations
 
-from app import agent as agent_module
+from fastapi.testclient import TestClient
+from opentelemetry import trace
+from opentelemetry.sdk.trace.export import (
+    SimpleSpanProcessor,
+    SpanExporter,
+    SpanExportResult,
+)
+
+from app.main import app
 
 
-class ManagedPrompt:
-    version = 3
+class RecordingSpanExporter(SpanExporter):
+    def __init__(self) -> None:
+        self.spans = []
 
-    def compile(self, **variables: str) -> str:
-        return (
-            f"Feature={variables['feature']}\n"
-            f"Docs={variables['docs']}\n"
-            f"Question={variables['message']}"
+    def export(self, spans) -> SpanExportResult:
+        self.spans.extend(spans)
+        return SpanExportResult.SUCCESS
+
+    def shutdown(self) -> None:
+        return None
+
+
+def test_chat_emits_safe_otel_span_hierarchy(monkeypatch) -> None:
+    monkeypatch.setenv("PROMPT_NAME", "day13-chat")
+    monkeypatch.setenv("PROMPT_LABEL", "canary")
+    monkeypatch.setenv("PROMPT_VERSION", "v2")
+    exporter = RecordingSpanExporter()
+    provider = trace.get_tracer_provider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+
+    raw_message = "Email student@example.com: explain monitoring"
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat",
+            headers={"x-request-id": "req-trace-safe"},
+            json={
+                "user_id": "student-01",
+                "session_id": "session-01",
+                "feature": "qa",
+                "message": raw_message,
+            },
         )
 
+    assert response.status_code == 200
+    spans_by_name = {span.name: span for span in exporter.spans}
+    required = {"POST /chat", "agent.run", "rag.retrieve", "prompt.resolve", "llm.generate"}
+    assert required <= spans_by_name.keys()
 
-class RecordingLangfuseClient:
-    def __init__(self) -> None:
-        self.prompt = ManagedPrompt()
-        self.trace_updates: list[dict] = []
-        self.generation_updates: list[dict] = []
+    root = spans_by_name["POST /chat"]
+    agent = spans_by_name["agent.run"]
+    assert agent.parent.span_id == root.context.span_id
+    for child_name in ("rag.retrieve", "prompt.resolve", "llm.generate"):
+        assert spans_by_name[child_name].parent.span_id == agent.context.span_id
 
-    def get_prompt(self, name: str, **kwargs):
-        return self.prompt
+    assert agent.attributes["correlation_id"] == "req-trace-safe"
+    assert agent.attributes["prompt_name"] == "day13-chat"
+    assert agent.attributes["prompt_label"] == "canary"
+    assert agent.attributes["prompt_version"] == "v2"
+    assert spans_by_name["rag.retrieve"].attributes["rag.result_count"] >= 1
+    assert spans_by_name["llm.generate"].attributes["llm.tokens.input"] > 0
 
-    def update_current_trace(self, **kwargs) -> None:
-        self.trace_updates.append(kwargs)
-
-    def update_current_generation(self, **kwargs) -> None:
-        self.generation_updates.append(kwargs)
-
-
-def test_agent_links_prompt_version_to_trace_and_generation(monkeypatch) -> None:
-    monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "test-public-key")
-    monkeypatch.setenv("LANGFUSE_SECRET_KEY", "test-secret-key")
-    monkeypatch.setenv("LANGFUSE_PROMPT_NAME", "day13-chat")
-    monkeypatch.setenv("LANGFUSE_PROMPT_LABEL", "production")
-    client = RecordingLangfuseClient()
-    monkeypatch.setattr(agent_module, "get_langfuse_client", lambda: client)
-
-    agent = agent_module.LabAgent()
-    agent_module.LabAgent.run.__wrapped__(
-        agent,
-        user_id="student-01",
-        feature="qa",
-        session_id="session-01",
-        message="Explain traces",
+    all_attributes = " ".join(
+        str(value)
+        for span in exporter.spans
+        for value in span.attributes.values()
     )
-
-    trace_metadata = client.trace_updates[-1]["metadata"]
-    generation_update = client.generation_updates[-1]
-    assert trace_metadata == {
-        "prompt_name": "day13-chat",
-        "prompt_label": "production",
-        "prompt_version": "3",
-        "prompt_source": "langfuse",
-    }
-    assert generation_update["prompt"] is client.prompt
-    assert generation_update["metadata"]["prompt_version"] == "3"
+    assert raw_message not in all_attributes
+    assert "student@example.com" not in all_attributes
+    assert response.json()["answer"] not in all_attributes

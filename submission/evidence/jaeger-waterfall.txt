@@ -1,0 +1,12 @@
+Jaeger service: day13-observability-lab
+Trace ID: 6ed80ae7d0b1ed14b25015be5e7f1c64
+Correlation ID: req-98064116
+
+POST /chat              span=b4d1dd02fc5bf236 parent=<root>             production/v1 status=ok
+└── agent.run           span=925c9ffde603ea78 parent=b4d1dd02fc5bf236 production/v1 status=ok
+    ├── rag.retrieve     span=18bb944f13c74f3a parent=925c9ffde603ea78 result_count=1 status=ok
+    ├── prompt.resolve   span=d512b9709795303c parent=925c9ffde603ea78 production/v1 status=ok
+    └── llm.generate     span=729bb7179d8508eb parent=925c9ffde603ea78 production/v1 status=ok
+
+Jaeger also records internal ASGI receive/send spans; they do not change the required business-span hierarchy.
+UI screenshot blocker: no browser runtime was available in this execution session.

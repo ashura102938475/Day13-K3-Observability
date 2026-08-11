@@ -9,7 +9,6 @@ requires-python = ">=3.10"
 dependencies = [
     "fastapi==0.118.0",
     "httpx==0.28.1",
-    "langfuse==3.2.1",
     "opentelemetry-api>=1.44.0",
     "opentelemetry-exporter-otlp>=1.44.0",
     "opentelemetry-instrumentation-fastapi>=0.65b0",

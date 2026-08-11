@@ -1,0 +1,22 @@
+{
+  "target": {
+    "job": "fastapi",
+    "health": "up",
+    "scrape_url": "http://host.docker.internal:8000/metrics",
+    "last_error": ""
+  },
+  "samples": {
+    "lab13_chat_requests_total_success": 20,
+    "lab13_chat_request_duration_seconds_count": 20,
+    "lab13_chat_errors_total_RuntimeError": 1,
+    "lab13_llm_tokens_total_input": 660,
+    "lab13_llm_tokens_total_output": 2417,
+    "lab13_llm_cost_usd_total": 0.038235,
+    "lab13_chat_quality_score_count": 20
+  },
+  "alert_rules": [
+    {"name": "Lab13LatencyP95SLOBreach", "health": "ok"},
+    {"name": "Lab13ErrorRateSLOBreach", "health": "ok"},
+    {"name": "Lab13DailyCostSLOBreach", "health": "ok"}
+  ]
+}

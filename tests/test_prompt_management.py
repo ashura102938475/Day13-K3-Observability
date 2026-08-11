@@ -1,63 +1,25 @@
 from __future__ import annotations
 
+import pytest
 
-class UnexpectedPromptClient:
-    def get_prompt(self, *args, **kwargs):
-        raise AssertionError("Không được gọi Langfuse khi tracing bị tắt")
-
-
-class FakeManagedPrompt:
-    version = 7
-
-    def compile(self, **variables: str) -> str:
-        return (
-            f"Feature={variables['feature']}\n"
-            f"Docs={variables['docs']}\n"
-            f"Question={variables['message']}"
-        )
+from app.prompt_management import resolve_prompt
 
 
-class RecordingPromptClient:
-    def __init__(self) -> None:
-        self.request: tuple[str, dict] | None = None
-        self.prompt = FakeManagedPrompt()
-
-    def get_prompt(self, name: str, **kwargs):
-        self.request = (name, kwargs)
-        return self.prompt
-
-
-class FailingPromptClient:
-    def get_prompt(self, *args, **kwargs):
-        raise TimeoutError("Langfuse local is unavailable")
-
-
-class FallbackManagedPrompt(FakeManagedPrompt):
-    version = 0
-    is_fallback = True
-
-
-class FallbackReturningPromptClient:
-    def get_prompt(self, *args, **kwargs):
-        return FallbackManagedPrompt()
-
-
-def test_local_prompt_fallback_keeps_lab_runnable_without_langfuse() -> None:
-    from app.prompt_management import resolve_prompt
+def test_default_prompt_resolves_to_production_v1(monkeypatch) -> None:
+    monkeypatch.delenv("PROMPT_NAME", raising=False)
+    monkeypatch.delenv("PROMPT_LABEL", raising=False)
+    monkeypatch.delenv("PROMPT_VERSION", raising=False)
 
     resolved = resolve_prompt(
-        UnexpectedPromptClient(),
         feature="qa",
         docs=["Refund within 7 days", "Proof of purchase is required"],
         message="What is the refund policy?",
-        enabled=False,
     )
 
     assert resolved.source == "local"
     assert resolved.name == "day13-chat"
     assert resolved.label == "production"
-    assert resolved.version == "local-v1"
-    assert resolved.managed_prompt is None
+    assert resolved.version == "v1"
     assert resolved.text == (
         "Feature=qa\n"
         "Docs=Refund within 7 days\nProof of purchase is required\n"
@@ -65,72 +27,41 @@ def test_local_prompt_fallback_keeps_lab_runnable_without_langfuse() -> None:
     )
 
 
-def test_langfuse_prompt_version_and_label_are_resolved(monkeypatch) -> None:
-    from app.prompt_management import DEFAULT_PROMPT_TEMPLATE, resolve_prompt
-
-    monkeypatch.setenv("LANGFUSE_PROMPT_NAME", "day13-incident-assistant")
-    monkeypatch.setenv("LANGFUSE_PROMPT_LABEL", "candidate")
-    client = RecordingPromptClient()
+def test_candidate_label_resolves_v2(monkeypatch) -> None:
+    monkeypatch.setenv("PROMPT_NAME", "day13-chat")
+    monkeypatch.setenv("PROMPT_LABEL", "canary")
+    monkeypatch.setenv("PROMPT_VERSION", "v2")
 
     resolved = resolve_prompt(
-        client,
         feature="monitoring",
         docs=["Trace first", "Confirm with logs"],
         message="Where is the bottleneck?",
-        enabled=True,
     )
 
-    assert client.request == (
-        "day13-incident-assistant",
-        {
-            "label": "candidate",
-            "type": "text",
-            "fallback": DEFAULT_PROMPT_TEMPLATE,
-            "cache_ttl_seconds": 60,
-            "fetch_timeout_seconds": 2,
-            "max_retries": 0,
-        },
+    assert (resolved.name, resolved.label, resolved.version) == (
+        "day13-chat",
+        "canary",
+        "v2",
     )
-    assert resolved.source == "langfuse"
-    assert resolved.version == "7"
-    assert resolved.managed_prompt is client.prompt
-    assert resolved.text == (
-        "Feature=monitoring\n"
-        "Docs=Trace first\nConfirm with logs\n"
-        "Question=Where is the bottleneck?"
-    )
+    assert "Answer only from the supplied documents" in resolved.text
 
 
-def test_prompt_fetch_failure_uses_visible_local_fallback() -> None:
-    from app.prompt_management import resolve_prompt
+def test_rollback_returns_to_production_v1(monkeypatch) -> None:
+    monkeypatch.setenv("PROMPT_LABEL", "canary")
+    monkeypatch.setenv("PROMPT_VERSION", "v2")
+    candidate = resolve_prompt(feature="qa", docs=["Trace first"], message="Why?")
 
-    resolved = resolve_prompt(
-        FailingPromptClient(),
-        feature="qa",
-        docs=["Trace first"],
-        message="What happened?",
-        enabled=True,
-    )
+    monkeypatch.setenv("PROMPT_LABEL", "production")
+    monkeypatch.setenv("PROMPT_VERSION", "v1")
+    rollback = resolve_prompt(feature="qa", docs=["Trace first"], message="Why?")
 
-    assert resolved.source == "local-fallback"
-    assert resolved.version == "local-v1"
-    assert resolved.fetch_error == "TimeoutError"
-    assert resolved.managed_prompt is None
-    assert resolved.text == "Feature=qa\nDocs=Trace first\nQuestion=What happened?"
+    assert (candidate.label, candidate.version) == ("canary", "v2")
+    assert (rollback.label, rollback.version) == ("production", "v1")
+    assert candidate.text != rollback.text
 
 
-def test_sdk_fallback_is_not_reported_as_managed_prompt() -> None:
-    from app.prompt_management import resolve_prompt
+def test_unknown_prompt_version_is_rejected(monkeypatch) -> None:
+    monkeypatch.setenv("PROMPT_VERSION", "v999")
 
-    resolved = resolve_prompt(
-        FallbackReturningPromptClient(),
-        feature="qa",
-        docs=["Trace first"],
-        message="What happened?",
-        enabled=True,
-    )
-
-    assert resolved.source == "local-fallback"
-    assert resolved.version == "local-v1"
-    assert resolved.fetch_error == "LangfuseFallback"
-    assert resolved.managed_prompt is None
+    with pytest.raises(ValueError, match="Unsupported prompt version: v999"):
+        resolve_prompt(feature="qa", docs=["Trace first"], message="Why?")
