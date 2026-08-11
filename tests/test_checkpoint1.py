@@ -102,3 +102,41 @@ def test_scrub_event_redacts_nested_pii() -> None:
     assert "REDACTED_PHONE_VN" in rendered
     assert "REDACTED_CCCD" in rendered
     assert "REDACTED_CREDIT_CARD" in rendered
+
+
+def test_http_500_preserves_correlation_id(monkeypatch, tmp_path: Path) -> None:
+    log_path = tmp_path / "logs.jsonl"
+    monkeypatch.setattr(logging_config, "LOG_PATH", log_path)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat",
+            headers={"x-request-id": "test-500-id"},
+            json={"user_id": "u1", "session_id": "s1", "feature": "invalid_feature", "message": "fail"},
+        )
+
+    assert response.headers["x-request-id"] == "test-500-id"
+    assert "x-response-time-ms" in response.headers
+
+
+def test_otel_trace_context_enrichment(monkeypatch, tmp_path: Path) -> None:
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+
+    provider = TracerProvider()
+    tracer = provider.get_tracer("test")
+    log_path = tmp_path / "logs.jsonl"
+    monkeypatch.setattr(logging_config, "LOG_PATH", log_path)
+
+    with tracer.start_as_current_span("test_span"):
+        with TestClient(app) as client:
+            client.post("/chat", json=_chat_payload())
+
+    api_events = [event for event in _read_events(log_path) if event["service"] == "api"]
+    assert api_events
+    for event in api_events:
+        assert "trace_id" in event
+        assert "span_id" in event
+        assert len(event["trace_id"]) == 32
+        assert len(event["span_id"]) == 16
+

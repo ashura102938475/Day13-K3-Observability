@@ -18,12 +18,14 @@ BASE_URL = "http://127.0.0.1:8000"
 QUERIES = Path("data/sample_queries.jsonl")
 
 
-def send_request(client: httpx.Client, payload: dict) -> None:
+def send_request(client: httpx.Client, payload: dict, headers: dict | None = None) -> None:
     try:
         start = time.perf_counter()
-        r = client.post(f"{BASE_URL}/chat", json=payload)
+        r = client.post(f"{BASE_URL}/chat", json=payload, headers=headers)
         latency = (time.perf_counter() - start) * 1000
-        print(f"[{r.status_code}] {r.json().get('correlation_id')} | {payload['feature']} | {latency:.1f}ms")
+        correlation_id = r.headers.get("x-request-id", r.json().get("correlation_id", "N/A"))
+        resp_time = r.headers.get("x-response-time-ms", f"{latency:.1f}")
+        print(f"Status: {r.status_code} | Correlation ID: {correlation_id} | Response Time: {resp_time}ms | Feature: {payload.get('feature', 'n/a')}")
     except Exception as e:
         print(f"Error: {e}")
 
@@ -56,8 +58,10 @@ def main() -> None:
                 futures = [executor.submit(send_request, client, payload) for payload in payloads]
                 concurrent.futures.wait(futures)
         else:
-            for payload in payloads:
-                send_request(client, payload)
+            for idx, payload in enumerate(payloads):
+                # Test client-provided x-request-id for the second request to demonstrate propagation
+                headers = {"x-request-id": f"client-req-{idx:03d}"} if idx == 1 else None
+                send_request(client, payload, headers=headers)
 
 
 if __name__ == "__main__":

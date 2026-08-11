@@ -25,5 +25,17 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
             response.headers["x-request-id"] = correlation_id
             response.headers["x-response-time-ms"] = f"{elapsed_ms:.2f}"
             return response
+        except Exception:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "Internal Server Error"},
+                headers={
+                    "x-request-id": correlation_id,
+                    "x-response-time-ms": f"{elapsed_ms:.2f}",
+                },
+            )
         finally:
             clear_contextvars()

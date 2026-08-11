@@ -10,8 +10,7 @@ PII_PATTERNS: dict[str, str] = {
     "credit_card": r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b",
     "passport": r"\b[A-Z]{1,2}\d{7}\b",
     "address_vn": (
-        r"(?i:\b(?:địa\s*chỉ|dia\s*chi)\s*:\s*)"
-        r"[^\n;]+"
+        r"(?i:(?:\b(?:địa\s*chỉ|dia\s*chi)\s*:?\s*|\b(?:số\s*nhà|đường|phường|quận|huyện|tỉnh|thành\s*phố)\s+)[^\n;,.]+)"
     ),
 }
 
