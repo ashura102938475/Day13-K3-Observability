@@ -15,4 +15,9 @@ datasources:
     access: proxy
     url: http://jaeger:16686
     editable: false
+    jsonData:
+      nodeGraph:
+        enabled: true
+      traceIdTimeParams:
+        enabled: true
 

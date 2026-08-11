@@ -47,15 +47,26 @@ def resolve_prompt(
 ) -> ResolvedPrompt:
     resolved_name = name or os.getenv("PROMPT_NAME", "day13-chat")
     resolved_label = label or os.getenv("PROMPT_LABEL", "production")
-    resolved_version = version or os.getenv("PROMPT_VERSION")
-    if not resolved_version:
-        resolved_version = DEFAULT_VERSION_BY_LABEL.get(resolved_label, "v1")
+    expected_version = DEFAULT_VERSION_BY_LABEL.get(resolved_label)
+    if expected_version is None:
+        supported = ", ".join(sorted(DEFAULT_VERSION_BY_LABEL))
+        raise ValueError(
+            f"Unsupported prompt label: {resolved_label}. Supported labels: {supported}"
+        )
+
+    resolved_version = version or os.getenv("PROMPT_VERSION") or expected_version
 
     template = PROMPT_TEMPLATES.get(resolved_version)
     if template is None:
         supported = ", ".join(sorted(PROMPT_TEMPLATES))
         raise ValueError(
             f"Unsupported prompt version: {resolved_version}. Supported versions: {supported}"
+        )
+    if resolved_version != expected_version:
+        raise ValueError(
+            "Prompt label/version mismatch: "
+            f"label {resolved_label!r} resolves to {expected_version!r}, "
+            f"got {resolved_version!r}"
         )
 
     return ResolvedPrompt(

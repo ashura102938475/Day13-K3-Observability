@@ -46,6 +46,15 @@ def test_candidate_label_resolves_v2(monkeypatch) -> None:
     assert "Answer only from the supplied documents" in resolved.text
 
 
+def test_candidate_label_resolves_v2_without_explicit_version(monkeypatch) -> None:
+    monkeypatch.setenv("PROMPT_LABEL", "canary")
+    monkeypatch.delenv("PROMPT_VERSION", raising=False)
+
+    resolved = resolve_prompt(feature="qa", docs=["Trace first"], message="Why?")
+
+    assert (resolved.label, resolved.version) == ("canary", "v2")
+
+
 def test_rollback_returns_to_production_v1(monkeypatch) -> None:
     monkeypatch.setenv("PROMPT_LABEL", "canary")
     monkeypatch.setenv("PROMPT_VERSION", "v2")
@@ -64,4 +73,20 @@ def test_unknown_prompt_version_is_rejected(monkeypatch) -> None:
     monkeypatch.setenv("PROMPT_VERSION", "v999")
 
     with pytest.raises(ValueError, match="Unsupported prompt version: v999"):
+        resolve_prompt(feature="qa", docs=["Trace first"], message="Why?")
+
+
+def test_unknown_prompt_label_is_rejected(monkeypatch) -> None:
+    monkeypatch.setenv("PROMPT_LABEL", "staging")
+    monkeypatch.delenv("PROMPT_VERSION", raising=False)
+
+    with pytest.raises(ValueError, match="Unsupported prompt label: staging"):
+        resolve_prompt(feature="qa", docs=["Trace first"], message="Why?")
+
+
+def test_mismatched_prompt_label_and_version_are_rejected(monkeypatch) -> None:
+    monkeypatch.setenv("PROMPT_LABEL", "production")
+    monkeypatch.setenv("PROMPT_VERSION", "v2")
+
+    with pytest.raises(ValueError, match="Prompt label/version mismatch"):
         resolve_prompt(feature="qa", docs=["Trace first"], message="Why?")
