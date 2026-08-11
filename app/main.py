@@ -12,6 +12,7 @@ from .logging_config import configure_logging, get_logger
 from .metrics import record_error, snapshot
 from .middleware import CorrelationIdMiddleware
 from .pii import hash_user_id, summarize_text
+from .observability import get_prometheus_metrics, init_observability
 from .schemas import ChatRequest, ChatResponse
 from .tracing import tracing_enabled
 
@@ -19,6 +20,7 @@ configure_logging()
 log = get_logger()
 app = FastAPI(title="Day 13 Observability Lab")
 app.add_middleware(CorrelationIdMiddleware)
+init_observability(app)
 agent = LabAgent()
 
 
@@ -38,8 +40,8 @@ async def health() -> dict:
 
 
 @app.get("/metrics")
-async def metrics() -> dict:
-    return snapshot()
+async def metrics() -> Response:
+    return get_prometheus_metrics()
 
 
 @app.post("/chat", response_model=ChatResponse)
