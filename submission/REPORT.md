@@ -140,6 +140,21 @@
 
 ---
 
+## Bonus: Cost Optimization and Audit Automation
+
+- **Cost optimization**: Added an optional `LLM_MAX_OUTPUT_TOKENS` cap. Under the
+  `cost_spike` incident and the same 10-request workload, total cost decreased
+  from `$0.075210` to `$0.024990` (66.77% reduction). Average quality stayed at
+  `0.88`, above the configured `0.75` SLO. See
+  `submission/evidence/cost-before.json`, `cost-after.json` and
+  `cost-comparison.txt`.
+- **Audit log**: Added `AUDIT_LOG_PATH`-based JSONL audit records for incident
+  enable/disable, tracked configuration changes and anomaly detections. Audit
+  records are scrubbed and exclude raw prompts and secrets.
+- **Custom automation**: Added `scripts/detect_anomalies.py` for latency P95,
+  error rate, total cost, quality and PII checks. It writes
+  `data/anomalies.jsonl` and records detected anomalies in the audit log.
+
 ## 8. Individual Contribution
 
 - **CP0 — OpenTelemetry & Infrastructure**: OpenTelemetry SDK initialization, OTLP gRPC exporter setup, Docker Compose environment (Jaeger, Prometheus, Grafana).

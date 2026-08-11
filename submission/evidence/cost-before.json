@@ -1,0 +1,13 @@
+{
+  "avg_cost_usd": 0.007521,
+  "cost_optimization_strategies": {
+    "disabled": 10
+  },
+  "invalid_json_lines": 0,
+  "latency_p95_ms": 151.0,
+  "quality_avg": 0.88,
+  "request_count": 10,
+  "tokens_in_total": 330,
+  "tokens_out_total": 4948,
+  "total_cost_usd": 0.07521
+}

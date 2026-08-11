@@ -1,0 +1,22 @@
+Cost optimization smoke test
+============================
+
+Workload: python scripts/load_test.py --concurrency 5
+Incident: cost_spike
+Output cap after optimization: LLM_MAX_OUTPUT_TOKENS=160
+
+Before (no output cap)
+- Requests: 10
+- Output tokens: 4948
+- Total cost: $0.075210
+- Quality average: 0.88
+
+After (output token cap)
+- Requests: 10
+- Output tokens: 1600
+- Total cost: $0.024990
+- Quality average: 0.88
+
+Result
+- Cost reduction: 66.77%
+- Quality SLO (>= 0.75): PASS

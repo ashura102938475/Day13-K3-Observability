@@ -1,0 +1,11 @@
+Command:
+python scripts/detect_anomalies.py
+
+Result:
+Detected 1 anomaly:
+- signal: error_rate_pct
+- observed: 7.142857%
+- threshold: 2.0%
+- severity: critical
+
+The detector also wrote an anomaly_detected event to data/audit.jsonl.

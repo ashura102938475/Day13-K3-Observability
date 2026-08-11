@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from structlog.contextvars import bind_contextvars
 
 from .agent import LabAgent
+from .audit import record_config_change_if_needed, write_audit_event
 from .incidents import disable, enable, status
 from .logging_config import configure_logging, get_logger
 from .metrics import record_error
@@ -27,6 +28,7 @@ agent = LabAgent()
 
 @app.on_event("startup")
 async def startup() -> None:
+    record_config_change_if_needed()
     log.info(
         "app_started",
         service=os.getenv("APP_NAME", "day13-observability-lab"),
@@ -95,6 +97,13 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
                 "status": "ok",
             }
         )
+        if result.output_token_cap is not None:
+            set_current_span_attributes(
+                {
+                    "llm.output_token_cap": result.output_token_cap,
+                    "cost.optimization": "output_token_cap",
+                }
+            )
         log.info(
             "response_sent",
             service="api",
@@ -103,6 +112,12 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
             tokens_out=result.tokens_out,
             cost_usd=result.cost_usd,
             quality_score=result.quality_score,
+            cost_optimization=(
+                "output_token_cap"
+                if result.output_token_cap is not None
+                else "disabled"
+            ),
+            output_token_cap=result.output_token_cap,
             payload={"answer_preview": summarize_text(result.answer)},
         )
         return ChatResponse(
@@ -131,9 +146,16 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
 
 
 @app.post("/incidents/{name}/enable")
-async def enable_incident(name: str) -> JSONResponse:
+async def enable_incident(request: Request, name: str) -> JSONResponse:
     try:
         enable(name)
+        write_audit_event(
+            "incident_enabled",
+            actor="api",
+            target=name,
+            correlation_id=request.state.correlation_id,
+            details={"incidents": status()},
+        )
         log.warning("incident_enabled", service="control", payload={"name": name})
         return JSONResponse({"ok": True, "incidents": status()})
     except KeyError as exc:
@@ -141,9 +163,16 @@ async def enable_incident(name: str) -> JSONResponse:
 
 
 @app.post("/incidents/{name}/disable")
-async def disable_incident(name: str) -> JSONResponse:
+async def disable_incident(request: Request, name: str) -> JSONResponse:
     try:
         disable(name)
+        write_audit_event(
+            "incident_disabled",
+            actor="api",
+            target=name,
+            correlation_id=request.state.correlation_id,
+            details={"incidents": status()},
+        )
         log.warning("incident_disabled", service="control", payload={"name": name})
         return JSONResponse({"ok": True, "incidents": status()})
     except KeyError as exc:

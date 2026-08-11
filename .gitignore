@@ -4,6 +4,7 @@ __pycache__/
 .DS_Store
 data/logs.jsonl
 data/audit.jsonl
+data/anomalies.jsonl
 .env
 .pytest_cache/
 .antigravity/
