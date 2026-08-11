@@ -10,6 +10,8 @@ from structlog.contextvars import merge_contextvars
 
 from .pii import scrub_text
 
+from opentelemetry import trace
+
 LOG_PATH = Path(os.getenv("LOG_PATH", "data/logs.jsonl"))
 
 
@@ -21,6 +23,15 @@ class JsonlFileProcessor:
             f.write(rendered + "\n")
         return event_dict
 
+
+def add_opentelemetry_ids(_: Any, __: str, event_dict: dict[str, Any]) -> dict[str, Any]:
+    span = trace.get_current_span()
+    if span:
+        ctx = span.get_span_context()
+        if ctx and ctx.is_valid:
+            event_dict["trace_id"] = trace.format_trace_id(ctx.trace_id)
+            event_dict["span_id"] = trace.format_span_id(ctx.span_id)
+    return event_dict
 
 
 def _scrub_value(value: Any) -> Any:
@@ -41,13 +52,13 @@ def scrub_event(_: Any, __: str, event_dict: dict[str, Any]) -> dict[str, Any]:
     return event_dict
 
 
-
 def configure_logging() -> None:
     log_level = getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO)
     logging.basicConfig(format="%(message)s", level=log_level)
     structlog.configure(
         processors=[
             merge_contextvars,
+            add_opentelemetry_ids,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso", utc=True, key="ts"),
             scrub_event,
