@@ -1,0 +1,36 @@
+Grafana runtime evidence
+========================
+
+docker pull grafana/grafana:latest
+PASS
+Digest: sha256:ab5cb380e3ff3172d6c8bd2e7cfd31cce977d2881b260e1f5bc089bf0b759b43
+Status: Image is up to date for grafana/grafana:latest
+
+docker compose up -d grafana
+PASS
+Container day13-grafana Started
+
+docker compose ps
+PASS
+day13-grafana Up, 0.0.0.0:3000->3000/tcp
+
+GET http://localhost:3000/api/health
+PASS
+database=ok
+version=13.1.3
+commit=45a27d64b64a82d666b06aa5c5bb3521587edb0d
+
+GET http://localhost:3000/api/datasources
+PASS
+Prometheus uid=prometheus url=http://prometheus:9090 isDefault=true readOnly=true
+Jaeger uid=jaeger url=http://jaeger:16686 readOnly=true
+
+GET http://localhost:3000/api/search?type=dash-db
+PASS
+Dashboard title=Day 13 AI Observability
+uid=day13-observability
+url=/d/day13-observability/day-13-ai-observability
+
+python scripts/validate_dashboard.py
+PASS
+HOP LE: 6/6 panel co trong dashboard contract.

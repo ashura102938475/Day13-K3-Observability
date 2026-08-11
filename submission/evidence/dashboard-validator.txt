@@ -1,0 +1,6 @@
+Command: python scripts/validate_dashboard.py
+Result: PASS
+Output: HỢP LỆ: 6/6 panel có trong dashboard contract.
+
+Provisioned Grafana dashboard: config/grafana/dashboards/day13-observability.json
+Runtime JSON panel count: 6

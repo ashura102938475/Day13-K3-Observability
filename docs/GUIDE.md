@@ -26,11 +26,11 @@ Mỗi panel cần tên, đơn vị, khoảng thời gian và threshold. Ưu tiê
 
 Chạy `python scripts/validate_dashboard.py` trước. Nếu validator qua nhưng dashboard vẫn sai, đối chiếu từng event/field với bảng trong [DASHBOARD_SETUP.md](DASHBOARD_SETUP.md), đặc biệt `response_sent.latency_ms` và `response_sent.quality_score`.
 
-## Khi prompt luôn hiện `local-v1`
+## Khi trace hoặc prompt version không đúng
 
-1. Kiểm tra `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` và `LANGFUSE_HOST`.
-2. Kiểm tra prompt name/label trong `.env` có tồn tại trên đúng project không.
+1. Kiểm tra `OTEL_EXPORTER_OTLP_ENDPOINT`, Jaeger port `4317` và service name trong `.env`.
+2. Kiểm tra `PROMPT_NAME`, `PROMPT_LABEL`, `PROMPT_VERSION`; version hợp lệ là `v1` hoặc `v2`.
 3. Khởi động lại API sau khi đổi `.env`.
-4. Mở trace metadata: `prompt_source=local` nghĩa là chưa bật Langfuse; `local-fallback` nghĩa là đã bật nhưng fetch prompt lỗi.
+4. Mở metadata của `agent.run`, `prompt.resolve` và `llm.generate`; cả ba phải có cùng name/label/version và không chứa prompt text.
 
 Không sửa code để ghi giả version. Làm theo [PROMPT_VERSIONING.md](PROMPT_VERSIONING.md) và lấy trace thật làm evidence.

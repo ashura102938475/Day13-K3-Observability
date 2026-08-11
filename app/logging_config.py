@@ -6,10 +6,11 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from opentelemetry import trace
 from structlog.contextvars import merge_contextvars
 
 from .pii import scrub_text
+
+from opentelemetry import trace
 
 LOG_PATH = Path(os.getenv("LOG_PATH", "data/logs.jsonl"))
 
@@ -23,13 +24,13 @@ class JsonlFileProcessor:
         return event_dict
 
 
-def add_otel_trace_context(_: Any, __: str, event_dict: dict[str, Any]) -> dict[str, Any]:
+def add_opentelemetry_ids(_: Any, __: str, event_dict: dict[str, Any]) -> dict[str, Any]:
     span = trace.get_current_span()
     if span:
         ctx = span.get_span_context()
         if ctx and ctx.is_valid:
-            event_dict["trace_id"] = f"{ctx.trace_id:032x}"
-            event_dict["span_id"] = f"{ctx.span_id:016x}"
+            event_dict["trace_id"] = trace.format_trace_id(ctx.trace_id)
+            event_dict["span_id"] = trace.format_span_id(ctx.span_id)
     return event_dict
 
 
@@ -45,13 +46,8 @@ def _scrub_value(value: Any) -> Any:
     return value
 
 
-EXCLUDED_SCRUB_KEYS = {"correlation_id", "trace_id", "span_id"}
-
-
 def scrub_event(_: Any, __: str, event_dict: dict[str, Any]) -> dict[str, Any]:
-    for key, value in list(event_dict.items()):
-        if key in EXCLUDED_SCRUB_KEYS:
-            continue
+    for key, value in event_dict.items():
         event_dict[key] = _scrub_value(value)
     return event_dict
 
@@ -62,9 +58,9 @@ def configure_logging() -> None:
     structlog.configure(
         processors=[
             merge_contextvars,
+            add_opentelemetry_ids,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso", utc=True, key="ts"),
-            add_otel_trace_context,
             scrub_event,
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,

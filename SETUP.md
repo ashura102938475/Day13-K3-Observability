@@ -2,127 +2,87 @@
 
 ## Yêu cầu
 
-- Python 3.11 trở lên.
+- Python 3.10 trở lên.
 - Git.
-- Tài khoản hoặc project Langfuse do Lab Coach cung cấp.
-- Docker Desktop chỉ cần khi tự chọn chạy Langfuse local.
+- Docker Desktop để chạy Jaeger, Prometheus và Grafana.
 
-## 1. Tạo môi trường virtual environment
+## 1. Cài dependencies
 
-### Phương án A: Dùng `uv` (Khuyên dùng - Nhanh & Tự động sync)
+Với `uv`:
 
-```bash
-# Sync môi trường và cài đặt tự động từ pyproject.toml / uv.lock
+```powershell
 uv sync
-
-# Khởi tạo file .env từ .env.example
-cp .env.example .env   # Linux/macOS
-# hoặc: Copy-Item .env.example .env  (Windows PowerShell)
+Copy-Item .env.example .env
 ```
 
-### Phương án B: Dùng Python truyền thống & `pip` (Không dùng `uv`)
-
-Windows PowerShell:
+Hoặc với Python/pip:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-macOS/Linux:
+Không commit `.env`, `.venv` hoặc secret.
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-cp .env.example .env
-```
+## 2. Cấu hình OpenTelemetry và prompt
 
-## 2. Cấu hình Langfuse — mặc định dùng chung/cloud
-
-Ưu tiên project dùng chung do Lab Coach cung cấp hoặc Langfuse Cloud. Điền host và key của project vào `.env`:
+Giá trị mặc định trong `.env.example`:
 
 ```dotenv
-LANGFUSE_PUBLIC_KEY=
-LANGFUSE_SECRET_KEY=
-LANGFUSE_HOST=https://cloud.langfuse.com
-LANGFUSE_PROMPT_NAME=day13-chat
-LANGFUSE_PROMPT_LABEL=production
+OTEL_SERVICE_NAME=day13-observability-lab
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+OTEL_EXPORTER_OTLP_INSECURE=true
+OTEL_SDK_DISABLED=false
+PROMPT_NAME=day13-chat
+PROMPT_LABEL=production
+PROMPT_VERSION=v1
 ```
 
-Không commit `.env`. Nếu chưa có key, app vẫn chạy bằng prompt local; bạn vẫn làm được log, metrics và public tests nhưng chưa có evidence trace/prompt version.
+Prompt candidate dùng `PROMPT_LABEL=canary`, `PROMPT_VERSION=v2`. Rollback bằng cách trả lại `production/v1` và khởi động lại API.
 
-## 3. Tùy chọn: chạy Langfuse local bằng Docker Compose
+## 3. Chạy observability stack
 
-Phần này không bắt buộc và không được cộng điểm riêng. Chỉ dùng khi nhóm không truy cập được project chung/cloud và máy có Docker Desktop đủ tài nguyên.
-
-Ở một thư mục nằm ngoài repo bài nộp:
-
-```bash
-git clone https://github.com/langfuse/langfuse.git langfuse-local
-cd langfuse-local
+```powershell
 docker compose up -d
+docker compose ps
 ```
 
-Chờ container `langfuse-web` sẵn sàng, sau đó mở `http://localhost:3000`, tạo project và lấy public/secret key. Trong repo lab, đặt:
+Các URL:
 
-```dotenv
-LANGFUSE_HOST=http://localhost:3000
-LANGFUSE_PUBLIC_KEY=pk-lf-...
-LANGFUSE_SECRET_KEY=sk-lf-...
-```
+- Jaeger: `http://localhost:16686`
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000` (`admin`/`admin`)
 
-Khi kết thúc buổi lab, dừng stack từ thư mục `langfuse-local`:
+Prometheus chạy trong container và scrape app trên Windows host qua `host.docker.internal:8000`.
 
-```bash
-docker compose down
-```
-
-Không dùng `docker compose down -v` nếu còn cần dữ liệu trace/prompt trong volume. Xem hướng dẫn cập nhật tại [Langfuse Docker Compose](https://langfuse.com/self-hosting/deployment/docker-compose).
-
-## 4. Kiểm tra cài đặt
-
-### Sử dụng `uv`:
+## 4. Chạy API và kiểm tra
 
 Terminal 1:
-```bash
-uv run uvicorn app.main:app --reload --env-file .env
+
+```powershell
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --env-file .env
 ```
 
 Terminal 2:
-```bash
-uv run python scripts/load_test.py
-uv run python scripts/validate_logs.py
-uv run python scripts/validate_dashboard.py
-uv run python -m pytest -q
-```
 
-### Sử dụng Python / pip truyền thống (đã activate `.venv`):
-
-Terminal 1:
-```bash
-uvicorn app.main:app --reload --env-file .env
-```
-
-Terminal 2:
-```bash
-python scripts/load_test.py
+```powershell
+python scripts/load_test.py --concurrency 5
 python scripts/validate_logs.py
 python scripts/validate_dashboard.py
 python -m pytest -q
 ```
 
-API mặc định chạy tại `http://127.0.0.1:8000`; health check ở `/health`, metrics ở `/metrics`.
+API: `http://127.0.0.1:8000`; health: `/health`; metrics: `/metrics`.
 
 ## Lỗi thường gặp
 
-- `ModuleNotFoundError`: kiểm tra virtual environment đã được activate và chạy lại `pip install -r requirements.txt`.
-- Không có `data/logs.jsonl`: bảo đảm API đang chạy trước khi chạy load test.
-- Không thấy trace: kiểm tra ba biến `LANGFUSE_*`, sau đó khởi động lại API.
-- Trace ghi `prompt_source=local-fallback`: kiểm tra host/key và prompt name/label trong `.env`.
-- Docker local không lên: chạy `docker compose ps`, kiểm tra Docker Desktop và tài nguyên máy; có thể quay về project chung/cloud.
-- Challenge chưa chạy: chờ Lab Coach release `config/challenge.json`.
+- `ModuleNotFoundError`: kích hoạt đúng virtual environment và cài lại dependencies.
+- Không có `data/logs.jsonl`: chạy API trước khi chạy load test.
+- Không thấy trace: kiểm tra Jaeger, port `4317` và `OTEL_EXPORTER_OTLP_ENDPOINT`.
+- Prometheus target DOWN: xác nhận API lắng nghe `0.0.0.0:8000` và target là `host.docker.internal:8000`.
+- Docker stack không lên: chạy `docker compose ps` và kiểm tra Docker Desktop.
+- Challenge chưa chạy: chờ Lab Coach release `config/challenge.json`; không tự sửa file challenge.

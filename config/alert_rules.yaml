@@ -1,19 +1,19 @@
 alerts:
-  - name: TODO_alert_1
-    severity: TODO
-    condition: TODO
+  - name: latency_p95_slo_breach
+    severity: critical
+    condition: 'histogram_quantile(0.95, sum by (le) (rate(lab13_chat_request_duration_seconds_bucket{route="/chat"}[5m]))) * 1000 > 3000'
     type: symptom-based
-    owner: TODO
+    owner: observability-team
     runbook: docs/alerts.md#alert-1
-  - name: TODO_alert_2
-    severity: TODO
-    condition: TODO
+  - name: error_rate_slo_breach
+    severity: critical
+    condition: '100 * sum(rate(lab13_chat_errors_total{route="/chat"}[5m])) / clamp_min(sum(rate(lab13_chat_requests_total{route="/chat"}[5m])), 0.000001) > 2'
     type: symptom-based
-    owner: TODO
+    owner: observability-team
     runbook: docs/alerts.md#alert-2
-  - name: TODO_alert_3
-    severity: TODO
-    condition: TODO
+  - name: daily_cost_slo_breach
+    severity: warning
+    condition: 'sum(increase(lab13_llm_cost_usd_total[24h])) > 2.5'
     type: symptom-based
-    owner: TODO
+    owner: observability-team
     runbook: docs/alerts.md#alert-3

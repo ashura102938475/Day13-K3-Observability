@@ -9,8 +9,6 @@ anyio==4.14.2
     #   watchfiles
 asgiref==3.12.1
     # via opentelemetry-instrumentation-asgi
-backoff==2.2.1
-    # via langfuse
 certifi==2026.7.22
     # via
     #   httpcore
@@ -46,9 +44,7 @@ httpcore==1.0.9
 httptools==0.8.0
     # via uvicorn
 httpx==0.28.1
-    # via
-    #   day13-k3-observability
-    #   langfuse
+    # via day13-k3-observability
 idna==3.18
     # via
     #   anyio
@@ -56,12 +52,9 @@ idna==3.18
     #   requests
 iniconfig==2.3.0
     # via pytest
-langfuse==3.2.1
-    # via day13-k3-observability
 opentelemetry-api==1.44.0
     # via
     #   day13-k3-observability
-    #   langfuse
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-exporter-otlp-proto-http
     #   opentelemetry-instrumentation
@@ -70,9 +63,7 @@ opentelemetry-api==1.44.0
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
 opentelemetry-exporter-otlp==1.44.0
-    # via
-    #   day13-k3-observability
-    #   langfuse
+    # via day13-k3-observability
 opentelemetry-exporter-otlp-proto-common==1.44.0
     # via
     #   opentelemetry-exporter-otlp-proto-grpc
@@ -97,7 +88,6 @@ opentelemetry-proto==1.44.0
 opentelemetry-sdk==1.44.0
     # via
     #   day13-k3-observability
-    #   langfuse
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-exporter-otlp-proto-http
 opentelemetry-semantic-conventions==0.65b0
@@ -112,7 +102,6 @@ opentelemetry-util-http==0.65b0
     #   opentelemetry-instrumentation-fastapi
 packaging==24.2
     # via
-    #   langfuse
     #   opentelemetry-instrumentation
     #   pytest
 pluggy==1.6.0
@@ -127,7 +116,6 @@ pydantic==2.11.4
     # via
     #   day13-k3-observability
     #   fastapi
-    #   langfuse
 pydantic-core==2.33.2
     # via pydantic
 pytest==8.3.5
@@ -141,9 +129,7 @@ pyyaml==6.0.3
     #   day13-k3-observability
     #   uvicorn
 requests==2.34.2
-    # via
-    #   langfuse
-    #   opentelemetry-exporter-otlp-proto-http
+    # via opentelemetry-exporter-otlp-proto-http
 starlette==0.48.0
     # via fastapi
 structlog==25.4.0
@@ -183,6 +169,4 @@ websockets==16.1.1 ; python_full_version < '3.11'
 websockets==17.0.1 ; python_full_version >= '3.11'
     # via uvicorn
 wrapt==1.17.3
-    # via
-    #   langfuse
-    #   opentelemetry-instrumentation
+    # via opentelemetry-instrumentation

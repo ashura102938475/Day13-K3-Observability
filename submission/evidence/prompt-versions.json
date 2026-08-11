@@ -1,0 +1,21 @@
+{
+  "prompt_name": "day13-chat",
+  "baseline": {
+    "label": "production",
+    "version": "v1",
+    "correlation_id": "req-98064116",
+    "trace_id": "6ed80ae7d0b1ed14b25015be5e7f1c64"
+  },
+  "candidate": {
+    "label": "canary",
+    "version": "v2",
+    "correlation_id": "req-prompt-v2",
+    "trace_id": "6e73bc90b9063a8db1eda1b31a602402"
+  },
+  "rollback": {
+    "label": "production",
+    "version": "v1",
+    "correlation_id": "req-prompt-rollback",
+    "trace_id": "449681b6cc761cc23d62b4c24627842b"
+  }
+}
