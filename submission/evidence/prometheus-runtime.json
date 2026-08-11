@@ -1,21 +1,24 @@
 {
+  "captured_at_utc": "2026-08-11T07:01:00Z",
   "target": {
     "job": "fastapi",
     "health": "up",
-    "scrape_url": "http://host.docker.internal:8000/metrics",
+    "scrape_url": "http://host.docker.internal:8013/metrics",
     "last_error": ""
   },
   "samples": {
-    "lab13_chat_requests_total_success": 11,
-    "lab13_chat_request_duration_seconds_count": 11,
-    "lab13_llm_tokens_total_input": 359,
-    "lab13_llm_tokens_total_output": 1400,
-    "lab13_llm_cost_usd_total": 0.022077,
-    "lab13_chat_quality_score_count": 11
+    "lab13_chat_requests_total": 40,
+    "lab13_chat_request_duration_seconds_count": 40,
+    "lab13_llm_tokens_total_input": 1314,
+    "lab13_llm_tokens_total_output": 5065,
+    "lab13_llm_cost_usd_total": 0.079917,
+    "lab13_chat_quality_score_count": 40,
+    "latency_p95_ms_5m": 2906.25,
+    "error_rate_pct_5m": 0
   },
   "alert_rules": [
-    {"name": "Lab13LatencyP95SLOBreach", "health": "ok"},
-    {"name": "Lab13ErrorRateSLOBreach", "health": "ok"},
-    {"name": "Lab13DailyCostSLOBreach", "health": "ok"}
+    {"name": "Lab13LatencyP95SLOBreach", "health": "ok", "state": "inactive"},
+    {"name": "Lab13ErrorRateSLOBreach", "health": "ok", "state": "inactive"},
+    {"name": "Lab13DailyCostSLOBreach", "health": "ok", "state": "inactive"}
   ]
 }

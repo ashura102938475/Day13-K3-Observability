@@ -1,5 +1,7 @@
-Command: python -m pytest -q
-Environment: Python 3.12.13, TEMP/TMP=C:\tmp
+Captured: 2026-08-11
+Command: uv run python -m pytest -q
+Environment: Python 3.12.13
 Result: PASS
-Summary: 27 passed, 4 warnings in 36.68s
+Summary: 36 passed, 4 warnings
+Bonus subset: 4 passed
 Warnings: FastAPI on_event deprecation only.

@@ -1,12 +1,14 @@
+Captured: 2026-08-11 refreshed rag_slow incident run
 Jaeger service: day13-observability-lab
-Trace ID: 6ed80ae7d0b1ed14b25015be5e7f1c64
-Correlation ID: req-98064116
+Trace ID: 81736320e9e8dad033d0a11e55583d09
+Correlation ID: req-d1619d98
 
-POST /chat              span=b4d1dd02fc5bf236 parent=<root>             production/v1 status=ok
-└── agent.run           span=925c9ffde603ea78 parent=b4d1dd02fc5bf236 production/v1 status=ok
-    ├── rag.retrieve     span=18bb944f13c74f3a parent=925c9ffde603ea78 result_count=1 status=ok
-    ├── prompt.resolve   span=d512b9709795303c parent=925c9ffde603ea78 production/v1 status=ok
-    └── llm.generate     span=729bb7179d8508eb parent=925c9ffde603ea78 production/v1 status=ok
+POST /chat             span=f984b84523badff2 parent=<root>             7970.469 ms production/v1 status=ok
+└── agent.run          span=20672ffdcebf3a69 parent=f984b84523badff2 2651.518 ms production/v1 status=ok
+    ├── rag.retrieve   span=4f139d5be1d80d0b parent=20672ffdcebf3a69 2500.582 ms result_count=1 status=ok
+    ├── prompt.resolve span=ae569f52cf238438 parent=20672ffdcebf3a69    0.000 ms production/v1 status=ok
+    └── llm.generate   span=e22ec86c3a5109d6 parent=20672ffdcebf3a69  150.936 ms production/v1 status=ok
 
-Jaeger also records internal ASGI receive/send spans; they do not change the required business-span hierarchy.
-UI screenshot blocker: no browser runtime was available in this execution session.
+The root span is longer than agent.run because concurrent requests wait before
+the blocking handler can progress. rag.retrieve accounts for about 94% of the
+agent execution time and identifies the incident location.

@@ -1,36 +1,33 @@
 Grafana runtime evidence
 ========================
+Captured: 2026-08-11 after Docker Desktop restart
 
-docker pull grafana/grafana:latest
+docker compose up -d --pull never
 PASS
-Digest: sha256:ab5cb380e3ff3172d6c8bd2e7cfd31cce977d2881b260e1f5bc089bf0b759b43
-Status: Image is up to date for grafana/grafana:latest
-
-docker compose up -d grafana
-PASS
-Container day13-grafana Started
 
 docker compose ps
 PASS
-day13-grafana Up, 0.0.0.0:3000->3000/tcp
+day13-grafana    grafana/grafana:13.1.0    Up    0.0.0.0:3001->3000/tcp
+day13-jaeger     jaeger:2.20.0             Up    16686, 4317, 4318
+day13-prometheus prometheus:3.13.2          Up    0.0.0.0:9090->9090/tcp
 
-GET http://localhost:3000/api/health
+GET http://localhost:3001/api/health
 PASS
 database=ok
-version=13.1.3
-commit=45a27d64b64a82d666b06aa5c5bb3521587edb0d
+version=13.1.0
+commit=b309c9bb3b81a748c3a75289236a27309ed2566a
 
-GET http://localhost:3000/api/datasources
-PASS
-Prometheus uid=prometheus url=http://prometheus:9090 isDefault=true readOnly=true
-Jaeger uid=jaeger url=http://jaeger:16686 readOnly=true
+Provisioned datasources in config:
+Prometheus uid=prometheus url=http://prometheus:9090
+Jaeger uid=jaeger url=http://jaeger:16686
 
-GET http://localhost:3000/api/search?type=dash-db
-PASS
-Dashboard title=Day 13 AI Observability
-uid=day13-observability
-url=/d/day13-observability/day-13-ai-observability
+Datasource health API was not re-run because the password stored in the
+persistent Grafana volume is no longer admin/admin. No credential reset was
+performed. The logged-in user can verify both datasources from the Grafana UI.
 
-python scripts/validate_dashboard.py
+uv run python scripts/validate_dashboard.py
 PASS
-HOP LE: 6/6 panel co trong dashboard contract.
+HỢP LỆ: 6/6 panel có trong dashboard contract.
+
+Dashboard URL:
+http://localhost:3001/d/day13-observability/day-13-ai-observability

@@ -1,0 +1,54 @@
+{
+  "challenge_id": "day13-k3-observability-v1",
+  "cohort": "K3",
+  "incident": "rag_slow",
+  "affected_feature": "refund",
+  "challenge_latency_threshold_ms": 2000,
+  "captured_at_utc": "2026-08-11T06:59:00Z",
+  "baseline": {
+    "request_count": 10,
+    "measurement": "x-response-time-ms response header",
+    "latency_ms_min": 155.19,
+    "latency_ms_max": 462.25
+  },
+  "incident_workload": {
+    "request_count": 5,
+    "concurrency": 3,
+    "measurement": "x-response-time-ms response header",
+    "latency_ms_min": 5310.09,
+    "latency_ms_max": 7969.14,
+    "http_status": 200,
+    "error_rate_pct": 0.0
+  },
+  "prometheus_snapshot": {
+    "latency_p95_ms_5m": 2906.25,
+    "chat_requests_total": 40,
+    "challenge_threshold_breached": true,
+    "latency_alert_3000ms_state": "inactive"
+  },
+  "trace_evidence": {
+    "trace_id": "81736320e9e8dad033d0a11e55583d09",
+    "correlation_id": "req-d1619d98",
+    "root_operation": "POST /chat",
+    "root_duration_ms": 7970.469,
+    "middleware_response_time_ms": 5313.54,
+    "agent_duration_ms": 2651.518,
+    "problem_span": "rag.retrieve",
+    "problem_span_duration_ms": 2500.582,
+    "prompt_name": "day13-chat",
+    "prompt_label": "production",
+    "prompt_version": "v1"
+  },
+  "log_evidence": {
+    "request_received_ts": "2026-08-11T06:59:01.086276Z",
+    "response_sent_ts": "2026-08-11T06:59:03.739770Z",
+    "application_latency_ms": 2651,
+    "tokens_in": 31,
+    "tokens_out": 136,
+    "cost_usd": 0.002133,
+    "quality_score": 0.9
+  },
+  "root_cause": "rag_slow executes blocking time.sleep(2.5) in app/mock_rag.py; concurrent requests queue on the blocked event loop",
+  "mitigation": "Disable rag_slow and verify all incident flags are false",
+  "recommended_fix": "Use async retrieval or a thread pool, plus timeout, fallback and circuit breaker"
+}
