@@ -6,13 +6,12 @@
     "last_error": ""
   },
   "samples": {
-    "lab13_chat_requests_total_success": 20,
-    "lab13_chat_request_duration_seconds_count": 20,
-    "lab13_chat_errors_total_RuntimeError": 1,
-    "lab13_llm_tokens_total_input": 660,
-    "lab13_llm_tokens_total_output": 2417,
-    "lab13_llm_cost_usd_total": 0.038235,
-    "lab13_chat_quality_score_count": 20
+    "lab13_chat_requests_total_success": 11,
+    "lab13_chat_request_duration_seconds_count": 11,
+    "lab13_llm_tokens_total_input": 359,
+    "lab13_llm_tokens_total_output": 1400,
+    "lab13_llm_cost_usd_total": 0.022077,
+    "lab13_chat_quality_score_count": 11
   },
   "alert_rules": [
     {"name": "Lab13LatencyP95SLOBreach", "health": "ok"},

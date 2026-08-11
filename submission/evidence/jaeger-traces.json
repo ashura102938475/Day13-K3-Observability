@@ -1,6 +1,6 @@
 {
   "service": "day13-observability-lab",
-  "trace_count": 16,
+  "trace_count": 34,
   "trace_ids": [
     "449681b6cc761cc23d62b4c24627842b",
     "4f4a1deae056d5ed7e1edda87e065f84",
