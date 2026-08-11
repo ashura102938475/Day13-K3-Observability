@@ -7,7 +7,20 @@
 - Tài khoản hoặc project Langfuse do Lab Coach cung cấp.
 - Docker Desktop chỉ cần khi tự chọn chạy Langfuse local.
 
-## 1. Tạo virtual environment
+## 1. Tạo môi trường virtual environment
+
+### Phương án A: Dùng `uv` (Khuyên dùng - Nhanh & Tự động sync)
+
+```bash
+# Sync môi trường và cài đặt tự động từ pyproject.toml / uv.lock
+uv sync
+
+# Khởi tạo file .env từ .env.example
+cp .env.example .env   # Linux/macOS
+# hoặc: Copy-Item .env.example .env  (Windows PowerShell)
+```
+
+### Phương án B: Dùng Python truyền thống & `pip` (Không dùng `uv`)
 
 Windows PowerShell:
 
@@ -73,14 +86,29 @@ Không dùng `docker compose down -v` nếu còn cần dữ liệu trace/prompt 
 
 ## 4. Kiểm tra cài đặt
 
-Terminal 1:
+### Sử dụng `uv`:
 
+Terminal 1:
+```bash
+uv run uvicorn app.main:app --reload --env-file .env
+```
+
+Terminal 2:
+```bash
+uv run python scripts/load_test.py
+uv run python scripts/validate_logs.py
+uv run python scripts/validate_dashboard.py
+uv run python -m pytest -q
+```
+
+### Sử dụng Python / pip truyền thống (đã activate `.venv`):
+
+Terminal 1:
 ```bash
 uvicorn app.main:app --reload --env-file .env
 ```
 
 Terminal 2:
-
 ```bash
 python scripts/load_test.py
 python scripts/validate_logs.py
