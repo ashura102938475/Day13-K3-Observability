@@ -1,0 +1,44 @@
+[
+  {
+    "event": "config_changed",
+    "actor": "startup",
+    "details": {
+      "tracked_env_keys": [
+        "APP_ENV",
+        "APP_NAME",
+        "PROMPT_NAME",
+        "PROMPT_LABEL",
+        "PROMPT_VERSION",
+        "LLM_MAX_OUTPUT_TOKENS"
+      ],
+      "tracked_config_files": [
+        "config/dashboard.yaml",
+        "config/slo.yaml",
+        "config/prometheus_alerts.yml"
+      ]
+    }
+  },
+  {
+    "event": "incident_enabled",
+    "actor": "api",
+    "target": "cost_spike",
+    "correlation_id": "req-fc31f24d",
+    "details": {
+      "incidents": {
+        "cost_spike": true,
+        "rag_slow": false,
+        "tool_fail": false
+      }
+    }
+  },
+  {
+    "event": "anomaly_detected",
+    "actor": "automation",
+    "target": "error_rate_pct",
+    "details": {
+      "observed": 7.142857,
+      "threshold": 2.0,
+      "severity": "critical"
+    }
+  }
+]

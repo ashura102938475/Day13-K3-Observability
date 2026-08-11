@@ -1,0 +1,13 @@
+{
+  "avg_cost_usd": 0.002499,
+  "cost_optimization_strategies": {
+    "output_token_cap": 10
+  },
+  "invalid_json_lines": 0,
+  "latency_p95_ms": 151.0,
+  "quality_avg": 0.88,
+  "request_count": 10,
+  "tokens_in_total": 330,
+  "tokens_out_total": 1600,
+  "total_cost_usd": 0.02499
+}

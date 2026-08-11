@@ -24,6 +24,7 @@ class AgentResult:
     prompt_label: str
     prompt_version: str
     rag_result_count: int
+    output_token_cap: int | None = None
 
 
 class LabAgent:
@@ -83,9 +84,19 @@ class LabAgent:
                         "llm.tokens.input": response.usage.input_tokens,
                         "llm.tokens.output": response.usage.output_tokens,
                         "llm.cost_usd": cost_usd,
+                        "cost.optimization": (
+                            "output_token_cap"
+                            if self.llm.max_output_tokens is not None
+                            else "disabled"
+                        ),
                         "status": "ok",
                     },
                 )
+                if self.llm.max_output_tokens is not None:
+                    set_span_attributes(
+                        llm_span,
+                        {"llm.output_token_cap": self.llm.max_output_tokens},
+                    )
                 llm_span.set_status(Status(StatusCode.OK))
 
             quality_score = self._heuristic_quality(message, response.text, docs)
@@ -98,10 +109,20 @@ class LabAgent:
                     "llm.tokens.output": response.usage.output_tokens,
                     "llm.cost_usd": cost_usd,
                     "quality.score": quality_score,
+                    "cost.optimization": (
+                        "output_token_cap"
+                        if self.llm.max_output_tokens is not None
+                        else "disabled"
+                    ),
                     "latency_ms": latency_ms,
                     "status": "ok",
                 },
             )
+            if self.llm.max_output_tokens is not None:
+                set_span_attributes(
+                    agent_span,
+                    {"llm.output_token_cap": self.llm.max_output_tokens},
+                )
             agent_span.set_status(Status(StatusCode.OK))
 
         metrics.record_request(
@@ -124,6 +145,7 @@ class LabAgent:
             prompt_label=prompt.label,
             prompt_version=prompt.version,
             rag_result_count=len(docs),
+            output_token_cap=self.llm.max_output_tokens,
         )
 
     def _estimate_cost(self, tokens_in: int, tokens_out: int) -> float:
