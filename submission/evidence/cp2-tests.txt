@@ -1,5 +1,5 @@
-Command: python -m pytest -q
-Environment: Python 3.12.13, TEMP/TMP=C:\tmp
+Command: .venv\Scripts\python.exe -m pytest -q
+Environment: Python 3.12, dependencies synchronized with uv.lock
 Result: PASS
-Summary: 27 passed, 4 warnings in 36.68s
-Warnings: FastAPI on_event deprecation only.
+Summary: 29 passed, 4 warnings in 4.46s
+Warnings: FastAPI on_event deprecation only; no test failures.

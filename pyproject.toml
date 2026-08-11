@@ -1,7 +1,7 @@
 [project]
 name = "day13-k3-observability"
 version = "0.1.0"
-description = "Add your description here"
+description = "Day 13 AI observability lab with structured logs, OpenTelemetry, Jaeger, Prometheus, and Grafana"
 authors = [
     { name = "ashura102938475", email = "tra01020407@gmail.com" }
 ]

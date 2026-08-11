@@ -27,7 +27,7 @@ Trong lab 4 giờ này, bạn sẽ biến một API AI chạy được nhưng kh
 | Setup | Cài Python, chạy Jaeger/Prometheus/Grafana bằng Docker Compose | `/health` trả `ok: true` | ảnh health và observability stack |
 | Logging & PII | Hoàn thiện correlation ID, metadata và redaction | `python scripts/validate_logs.py` đạt ít nhất 80/100 | log có correlation ID và log đã che PII |
 | Trace & Prompt Version | Tạo prompt v1/v2, chạy cùng input với hai label | trace có `prompt_name`, `prompt_label`, `prompt_version` | hai trace ID và ảnh đổi label/rollback |
-| Dashboard & SLO | Dựng đúng 6 panel từ `data/logs.jsonl` | `python scripts/validate_dashboard.py` báo `6/6 panel` | ảnh dashboard có time range, đơn vị, threshold |
+| Dashboard & SLO | Dựng đúng 6 panel từ Prometheus metrics tương đương contract log | `python scripts/validate_dashboard.py` báo `6/6 panel` | ảnh dashboard có time range, đơn vị, threshold |
 | Challenge | Chỉ chạy sau khi Lab Coach release file chính thức | nối được Metrics → Traces → Logs | root cause, fix và preventive measure |
 | Nộp bài | Hoàn thiện report, tests và Git | `python -m pytest -q` | repo URL, commit SHA và `submission/` |
 

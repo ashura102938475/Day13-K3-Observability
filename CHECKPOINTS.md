@@ -2,7 +2,7 @@
 
 ## Checkpoint 0 — 0:00–0:30: Setup và baseline
 
-- Làm theo [SETUP.md](SETUP.md); ưu tiên Langfuse chung/cloud, Docker local chỉ là tùy chọn.
+- Làm theo [SETUP.md](SETUP.md); chạy stack OpenTelemetry/Jaeger/Prometheus/Grafana bằng Docker Compose.
 - API và load test chạy được.
 - Có `data/logs.jsonl`.
 - Lưu kết quả baseline từ `python scripts/validate_logs.py` vào báo cáo.

@@ -3,19 +3,19 @@
   "baseline": {
     "label": "production",
     "version": "v1",
-    "correlation_id": "req-98064116",
-    "trace_id": "6ed80ae7d0b1ed14b25015be5e7f1c64"
+    "correlation_id": "req-e2e-prompt-v1",
+    "trace_id": "75f908127c51cdb5f01e19b64b68ba24"
   },
   "candidate": {
     "label": "canary",
     "version": "v2",
-    "correlation_id": "req-prompt-v2",
-    "trace_id": "6e73bc90b9063a8db1eda1b31a602402"
+    "correlation_id": "req-e2e-prompt-v2",
+    "trace_id": "373f4469d6daf1540ec5abeba8db32b6"
   },
   "rollback": {
     "label": "production",
     "version": "v1",
-    "correlation_id": "req-prompt-rollback",
-    "trace_id": "449681b6cc761cc23d62b4c24627842b"
+    "correlation_id": "req-e2e-prompt-rollback",
+    "trace_id": "83c006e383cfdcfc1ce4595cfe828600"
   }
 }

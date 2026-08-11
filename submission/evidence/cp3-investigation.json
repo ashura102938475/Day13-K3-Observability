@@ -1,0 +1,26 @@
+{
+  "challenge_id": "day13-k3-observability-v1",
+  "scenario": "rag_slow",
+  "baseline": {
+    "request_count": 5,
+    "latency_ms": {"min": 150, "p50": 151, "p95": 151, "max": 151},
+    "cost_usd_total": 0.010386,
+    "quality_score_avg": 0.86
+  },
+  "incident": {
+    "request_count": 5,
+    "latency_ms": {"min": 2651, "p50": 2651, "p95": 2652, "max": 2652},
+    "cost_usd_total": 0.010626,
+    "quality_score_avg": 0.86
+  },
+  "evidence": {
+    "correlation_id": "req-33bfdbe0",
+    "trace_id": "e4c9194a01aa6b2febe412c41089f27a",
+    "agent_run_ms": 2651.457,
+    "rag_retrieve_ms": 2500.678,
+    "llm_generate_ms": 150.779,
+    "response_log_latency_ms": 2651
+  },
+  "root_cause": "rag_slow causes mock_rag.retrieve() to block for 2.5 seconds",
+  "incident_disabled_after_test": true
+}

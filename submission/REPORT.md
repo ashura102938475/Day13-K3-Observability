@@ -1,148 +1,116 @@
 # Báo cáo Checkpoint 3 & Final Submission — Day 13 Observability Lab
 
-## 1. Team Information
+## 1. Thông tin bài nộp
 
-- **Project**: Day 13 — AI System Observability Lab (FastAPI, OpenTelemetry, Jaeger, Prometheus, Grafana)
-- **Cohort**: K3
-- **Challenge ID**: `day13-k3-observability-v1`
-- **Tracing Backend Note**: *Tracing backend used by the team: OpenTelemetry + Jaeger instead of Langfuse.*
+- Project: Day 13 — AI System Observability Lab
+- Cohort: K3
+- Repository: [ashura102938475/Day13-K3-Observability](https://github.com/ashura102938475/Day13-K3-Observability)
+- Commit được audit trước lượt hoàn thiện evidence: [`a1a9073`](https://github.com/ashura102938475/Day13-K3-Observability/commit/a1a9073)
+- Challenge ID: `day13-k3-observability-v1`
+- Observability stack: OpenTelemetry + Jaeger + Prometheus + Grafana (không dùng Langfuse)
 
----
+## 2. Kết quả kiểm tra cuối
 
-## 2. Technical Results
+| Hạng mục | Kết quả |
+|---|---|
+| `pytest -q` | `29 passed`, 4 deprecation warnings, 0 failed |
+| `validate_logs.py` | `100/100`; 103 records; 0 thiếu field; 0 PII leak |
+| `validate_dashboard.py` | `HỢP LỆ: 6/6 panel` |
+| Prometheus target | `fastapi` — `UP` |
+| Jaeger | service `day13-observability-lab`; 47 traces trả về |
+| Docker Compose | Jaeger, Prometheus và Grafana đều chạy |
+| API health | `ok=true`, `tracing_enabled=true`, mọi incident flag đã tắt |
 
-- **pytest**: `27 passed` (100% pass rate)
-- **scripts/validate_logs.py**: `100/100` score (Basic JSON schema PASSED, Correlation ID propagation PASSED, Log enrichment PASSED, PII scrubbing PASSED)
-- **scripts/validate_dashboard.py**: `HỢP LỆ: 6/6 panel` (latency, traffic, errors, cost, tokens, quality)
-- **Prometheus Target**: `fastapi` (`http://host.docker.internal:8000/metrics`) — Status: **`UP`**
-- **Jaeger Service**: `day13-observability-lab` — Status: **`UP`**, 10+ traces recorded
+Evidence: [pytest](evidence/cp2-tests.txt), [log validator](evidence/logs-validator.txt), [dashboard validator](evidence/dashboard-validator.txt), [Prometheus runtime](evidence/prometheus-runtime.json), [Jaeger traces](evidence/jaeger-traces.json).
 
----
+## 3. Structured logging, correlation và PII
 
-## 3. Structured Logging
+- [app/logging_config.py](../app/logging_config.py) cấu hình JSON log bằng `structlog` và chèn `trace_id`/`span_id` từ span OpenTelemetry đang active.
+- [app/middleware.py](../app/middleware.py) nhận hoặc tạo correlation ID và trả lại qua response header.
+- Log API có `ts`, `level`, `service`, `event`, `correlation_id`, `trace_id`, `span_id`, `user_id_hash`, `session_id`, `feature`, `model`, `env`.
+- [app/pii.py](../app/pii.py) che email, số điện thoại Việt Nam, CCCD và số thẻ; `user_id` được hash thay vì ghi thẳng.
 
-- **Format**: Structured JSON via `structlog` written line-by-line to `data/logs.jsonl`.
-- **Required & Enrichment Fields**: Every API log contains `ts`, `level`, `service`, `event`, `correlation_id`, `trace_id`, `span_id`, `user_id_hash`, `session_id`, `feature`, `model`, `env`.
-- **Log ↔ Trace Correlation**: Log processor `add_opentelemetry_ids` in [app/logging_config.py](file:///home/ezooo/Projects/Day13-K3-Observability/app/logging_config.py#L24-L31) dynamically extracts active `trace_id` and `span_id` from OpenTelemetry span context into every log entry.
-- **PII Scrubbing**: Automatic regex redaction (`scrub_event`) redacts email (`[REDACTED_EMAIL]`), VN phone numbers (`[REDACTED_PHONE_VN]`), CCCD (`[REDACTED_CCCD]`), and credit cards (`[REDACTED_CREDIT_CARD]`) without leaking sensitive user identifiers.
+Evidence correlation/privacy: [privacy-and-correlation.json](evidence/privacy-and-correlation.json). Validator xác nhận không phát hiện PII nguyên văn.
 
----
+## 4. Tracing và prompt versioning
 
-## 4. OpenTelemetry + Jaeger Tracing
+[app/observability.py](../app/observability.py) instrument FastAPI và export OTLP gRPC tới Jaeger. Luồng business span:
 
-- **Server Instrumentation**: Automatic HTTP server span `POST /chat` generated via `FastAPIInstrumentor` in [app/observability.py](file:///home/ezooo/Projects/Day13-K3-Observability/app/observability.py#L51-L56).
-- **AI Pipeline Trace Hierarchy**:
-  ```text
-  POST /chat (Automatic Server Span)
-  └── agent.run (Manual Span via start_span)
-      ├── rag.retrieve (Manual Span)
-      ├── prompt.resolve (Manual Span)
-      └── llm.generate (Manual Span)
-  ```
-- **OTLP Exporter**: `OTLPSpanExporter` sends traces via OTLP gRPC to Jaeger collector at `http://localhost:4317`.
-- **Error Handling**: `mark_span_error` automatically records exceptions and marks span status as `StatusCode.ERROR` on failure.
+```text
+POST /chat
+`-- agent.run
+    |-- rag.retrieve
+    |-- prompt.resolve
+    `-- llm.generate
+```
 
----
+Đã chạy đầy đủ v1 → candidate v2 → rollback v1:
 
-## 5. Prometheus Metrics & Dashboard
+| Giai đoạn | Label/version | Correlation ID | Trace ID |
+|---|---|---|---|
+| Baseline | `production/v1` | `req-e2e-prompt-v1` | `75f908127c51cdb5f01e19b64b68ba24` |
+| Candidate | `canary/v2` | `req-e2e-prompt-v2` | `373f4469d6daf1540ec5abeba8db32b6` |
+| Rollback | `production/v1` | `req-e2e-prompt-rollback` | `83c006e383cfdcfc1ce4595cfe828600` |
 
-- **Scrape Endpoint**: `http://localhost:8000/metrics` exposing Prometheus exposition format.
-- **Metric Definitions** ([app/metrics.py](file:///home/ezooo/Projects/Day13-K3-Observability/app/metrics.py)):
-  * `lab13_chat_requests_total` (Counter; labels: `route`, `status`)
-  * `lab13_chat_errors_total` (Counter; labels: `route`, `error_type`)
-  * `lab13_chat_request_duration_seconds` (Histogram; buckets: 0.05s–10s; labels: `route`)
-  * `lab13_llm_tokens_total` (Counter; labels: `model`, `direction`)
-  * `lab13_llm_cost_usd_total` (Counter; labels: `model`)
-  * `lab13_chat_quality_score` (Histogram; buckets: 0.0–1.0)
-- **Dashboard Contract** ([config/dashboard.yaml](file:///home/ezooo/Projects/Day13-K3-Observability/config/dashboard.yaml)): Contains all 6 required panel groups (Latency P50/P95/P99, Traffic QPS, Error Rate, Cost, Token Volume, Quality Proxy).
+Evidence: [prompt-versions.json](evidence/prompt-versions.json), [baseline v1](evidence/prompt-baseline-v1.png), [candidate v2](evidence/prompt-candidate-v2.png), [rollback v1](evidence/prompt-rollback-v1.png).
 
----
+## 5. Metrics, dashboard, SLO và alert
 
-## 6. SLO & Alerts
+[app/metrics.py](../app/metrics.py) xuất các metric:
 
-- **SLO Objectives** ([config/slo.yaml](file:///home/ezooo/Projects/Day13-K3-Observability/config/slo.yaml)):
-  * `latency_p95_ms`: < 3000 ms (Target: 99.5%, Window: 5m)
-  * `error_rate_pct`: < 2.0% (Target: 99.0%, Window: 5m)
-  * `daily_cost_usd`: < 2.50 USD (Target: 100.0%, Window: 24h)
-  * `quality_score_avg`: >= 0.75 (Target: 95.0%, Window: 5m)
-- **Alert Rules** ([config/prometheus_alerts.yml](file:///home/ezooo/Projects/Day13-K3-Observability/config/prometheus_alerts.yml)):
-  1. `Lab13LatencyP95SLOBreach`: P95 latency > 3000ms over 5m (Severity: `critical`).
-  2. `Lab13ErrorRateSLOBreach`: Error rate > 2% over 5m (Severity: `critical`).
-  3. `Lab13DailyCostSLOBreach`: 24h cost increase > $2.50 USD (Severity: `warning`).
-- **Runbooks**: Documented in [docs/alerts.md](file:///home/ezooo/Projects/Day13-K3-Observability/docs/alerts.md).
+- request count theo status và error count theo `error_type`;
+- latency histogram;
+- input/output tokens và estimated cost;
+- quality-score histogram.
 
----
+Dashboard provisioned tại [config/grafana/dashboards/day13-observability.json](../config/grafana/dashboards/day13-observability.json) có đúng sáu nhóm: latency P50/P95/P99, traffic, error rate + error breakdown, cost, tokens và quality. Prometheus scrape `http://host.docker.internal:8000/metrics`; Grafana dùng datasource `http://prometheus:9090`.
 
-## 7. Official Challenge Investigation
+SLO trong [config/slo.yaml](../config/slo.yaml): P95 dưới 3000 ms, error dưới 2%, daily cost dưới 2.5 USD và quality trung bình từ 0.75. Ba alert trong [config/prometheus_alerts.yml](../config/prometheus_alerts.yml) có trạng thái `health=ok` và thời gian duy trì lần lượt 5 phút, 5 phút, 15 phút; runbook nằm ở [docs/alerts.md](../docs/alerts.md).
 
-### General Information
-- **Incident Type**: Official Challenge (`config/challenge.json`)
-- **Challenge ID**: `day13-k3-observability-v1`
-- **Cohort**: K3
-- **Incident Name**: `rag_slow`
-- **Affected Feature**: `refund`
-- **Incident Window**: `04:03:15Z – 04:03:28Z UTC` (2026-08-11)
+Evidence dashboard: [error/cost/tokens/quality](evidence/grafana-dashboard.png), [latency/traffic/error/cost](evidence/grafana-dashboard-bottom.png). Cả hai ảnh cùng time range 1 giờ và ảnh runtime có series `RuntimeError`.
 
-### Baseline vs. Incident Metrics
+## 6. Điều tra challenge chính thức
 
-| Metric | Baseline Value | Incident Value | Delta / Change |
-| --- | --- | --- | --- |
-| **P50 Latency** | `0.150 s` | `0.175 s` | +0.025 s |
-| **P95 Latency** | `0.195 s` | `2.850 s` | **+13.6x increase** (SLO breached) |
-| **P99 Latency** | `0.199 s` | `2.970 s` | **+13.9x increase** |
-| **Traffic** | `0.024 req/s` | `0.051 req/s` | Normal load test volume |
-| **Error Rate** | `0.0%` | `0.0%` | Requests succeed with status 200 |
-| **Daily Cost** | `$0.015 USD` | `$0.032 USD` | Normal token usage |
-| **Quality** | `0.88` | `0.88` | Answers generated correctly |
+- Scenario: `rag_slow`
+- Feature: `refund`
+- Incident window: `2026-08-11T05:03:58Z` đến `05:04:12Z` UTC
+- Baseline và incident đều chạy 5 request từ input chính thức với concurrency 5.
 
-* **Most Abnormal Metric**: `lab13_chat_request_duration_seconds` P95 latency breached the SLO target (< 2.0s / 3.0s), jumping from ~195ms to 2850ms.
+### Baseline so với incident
 
-### Evidence Chain (Metrics → Traces → Logs → Root Cause)
+| Metric từ response log | Baseline | Incident | Kết luận |
+|---|---:|---:|---|
+| P50 latency | 151 ms | 2651 ms | tăng khoảng 17.6 lần |
+| P95 latency | 151 ms | 2652 ms | vi phạm rõ baseline; sát ngưỡng SLO 3000 ms |
+| Max latency | 151 ms | 2652 ms | tăng 2501 ms |
+| Error rate | 0% | 0% | request vẫn thành công |
+| Total cost | $0.010386 | $0.010626 | gần như không đổi |
+| Mean quality | 0.86 | 0.86 | không đổi |
 
-1. **Metrics Evidence**:
-   PromQL Query: `histogram_quantile(0.95, sum by (le) (rate(lab13_chat_request_duration_seconds_bucket{route="/chat"}[5m])))`
-   Returned `2.85` (2850ms), indicating a severe latency regression during the challenge execution window.
+### Chuỗi bằng chứng Metrics → Traces → Logs
 
-2. **Trace Evidence**:
-   - **Trace ID**: `3d3f76efb46616f09ebecafdfbff4a02`
-   - **Correlation ID**: `req-442f908f`
-   - **Root/Server Span**: `POST /chat` (Duration: `2656.3 ms`, Status: `ok`)
-   - **Parent Span**: `agent.run` (Duration: `2652.1 ms`, Status: `ok`)
-   - **Child Span Durations**:
-     * `rag.retrieve`: **`2500.3 ms`** (94.2% of overall request duration)
-     * `prompt.resolve`: `0.2 ms`
-     * `llm.generate`: `150.4 ms`
-   - **Problematic Span**: `rag.retrieve`
+1. Metrics/log samples cho thấy latency tăng từ khoảng 151 ms lên 2651–2652 ms, trong khi error, cost và quality không thay đổi đáng kể.
+2. Trace `e4c9194a01aa6b2febe412c41089f27a`, correlation `req-33bfdbe0` cho thấy `agent.run=2651.457 ms`; riêng `rag.retrieve=2500.678 ms`, còn `llm.generate=150.779 ms` và `prompt.resolve≈0 ms`.
+3. Response log cùng correlation/trace ghi `latency_ms=2651`, `cost_usd=0.001857`, `quality_score=0.9`.
+4. [app/mock_rag.py](../app/mock_rag.py) gọi `time.sleep(2.5)` khi flag `rag_slow` bật. Đây là nguyên nhân trực tiếp của span chậm. Root server span dài hơn (`7968.983 ms`) vì các request đồng thời thực hiện công việc sync làm block event loop.
 
-3. **Log Evidence**:
-   Log file `data/logs.jsonl` entry matching `trace_id: 3d3f76efb46616f09ebecafdfbff4a02` and `correlation_id: req-442f908f`:
-   ```json
-   {"service": "api", "payload": {"message_preview": "What is your refund policy?"}, "event": "request_received", "feature": "refund", "env": "dev", "session_id": "k3-challenge-s01", "user_id_hash": "026c7a407135", "model": "claude-sonnet-4-5", "correlation_id": "req-442f908f", "trace_id": "3d3f76efb46616f09ebecafdfbff4a02", "span_id": "e85b6c6d77b8a25a", "level": "info", "ts": "2026-08-11T04:03:15.384253Z"}
-   {"service": "api", "latency_ms": 2652, "tokens_in": 29, "tokens_out": 132, "cost_usd": 0.002067, "quality_score": 0.9, "payload": {"answer_preview": "Starter answer..."}, "event": "response_sent", "feature": "refund", "env": "dev", "session_id": "k3-challenge-s01", "user_id_hash": "026c7a407135", "model": "claude-sonnet-4-5", "correlation_id": "req-442f908f", "trace_id": "3d3f76efb46616f09ebecafdfbff4a02", "span_id": "e85b6c6d77b8a25a", "level": "info", "ts": "2026-08-11T04:03:18.037146Z"}
-   ```
-   Log confirms `latency_ms: 2652` specifically on the `refund` feature requests.
+Kết luận root cause có độ tin cậy cao vì metric, trace, log và code cùng chỉ về `rag.retrieve`. Sau test, incident đã được tắt và `/health` xác nhận mọi flag đều `false`.
 
-4. **Root Cause**:
-   - **Mechanism**: The `rag_slow` incident flag was enabled in `STATE` via `/incidents/rag_slow/enable` as instructed by `config/challenge.json`.
-   - **Code Location**: [app/mock_rag.py](file:///home/ezooo/Projects/Day13-K3-Observability/app/mock_rag.py#L17-L18):
-     ```python
-     if STATE["rag_slow"]:
-         time.sleep(2.5)
-     ```
-     `retrieve()` introduces an explicit 2.5-second artificial sleep on vector store document retrieval, directly slowing down `rag.retrieve` span and escalating P95 chat request latency beyond the 2000ms/3000ms threshold.
-   - **Confidence**: **High (100%)** — Verified across all 3 observability pillars (Prometheus metrics, Jaeger trace waterfall, structured JSON logs).
+Evidence: [cp3-investigation.json](evidence/cp3-investigation.json), [waterfall text](evidence/jaeger-waterfall.txt), [Jaeger waterfall screenshot](evidence/jaeger-challenge-waterfall.png).
 
-### Resolution & Action Plan
+### Fix và phòng ngừa
 
-- **Immediate Mitigation**: Post HTTP request to disable the incident flag: `POST http://localhost:8000/incidents/rag_slow/disable`.
-- **Permanent Fix**: Implement a hard retrieval timeout (e.g., 500ms max timeout) with fallback to local cached documents or keyword search index so slow vector search calls never block the agent pipeline.
-- **Preventive Measure**: Ensure `Lab13LatencyP95SLOBreach` alert rule triggers a critical notification when P95 latency exceeds 3000ms over a 5-minute window.
+- Ngắn hạn: tắt `rag_slow`, xác nhận health và theo dõi P95 trở về bình thường.
+- Fix: thay thao tác blocking bằng client async có timeout; đặt retrieval timeout khoảng 500 ms và fallback sang cache/keyword search.
+- Phòng ngừa: giữ alert P95 > 3000 ms trong 5 phút; bổ sung test timeout và load test concurrent để phát hiện event-loop blocking.
 
----
+## 7. Đóng góp kiểm chứng từ Git
 
-## 8. Individual Contribution
+| Tác giả Git | Phạm vi/commit kiểm chứng |
+|---|---|
+| `ashura102938475` | CP0 [`27d5001`](https://github.com/ashura102938475/Day13-K3-Observability/commit/27d5001), CP1 integration [`c79ee5f`](https://github.com/ashura102938475/Day13-K3-Observability/commit/c79ee5f), CP3 [`2ebcf78`](https://github.com/ashura102938475/Day13-K3-Observability/commit/2ebcf78), merge CP2 [`33042cd`](https://github.com/ashura102938475/Day13-K3-Observability/commit/33042cd), Docker fix [`a1a9073`](https://github.com/ashura102938475/Day13-K3-Observability/commit/a1a9073) |
+| `Hieunc2910` | Structured logging và PII tại [`a3f865b`](https://github.com/ashura102938475/Day13-K3-Observability/commit/a3f865b) |
+| `Bùi Gia Uy` | CP2 metrics/traces/dashboard [`e691c14`](https://github.com/ashura102938475/Day13-K3-Observability/commit/e691c14), evidence Grafana [`0138b34`](https://github.com/ashura102938475/Day13-K3-Observability/commit/0138b34) |
+| `HungBil` | Upstream lab/challenge release, gồm [`cd84f4f`](https://github.com/ashura102938475/Day13-K3-Observability/commit/cd84f4f) |
 
-- **CP0 — OpenTelemetry & Infrastructure**: OpenTelemetry SDK initialization, OTLP gRPC exporter setup, Docker Compose environment (Jaeger, Prometheus, Grafana).
-- **CP1 — Correlation & Logging**: Structlog JSON logging configuration, `CorrelationIdMiddleware`, `user_id` SHA-256 hashing, PII scrubbing.
-- **CP2 — Metrics, Spans & Alerts**: Prometheus metric instruments, FastAPI instrumentor, trace hierarchy (`agent.run`, `rag.retrieve`, `prompt.resolve`, `llm.generate`), dashboard contract, SLO definitions, symptom-based alert rules.
-- **CP3 — Challenge Investigation & Final Deliverable**: Pre-incident baseline verification, `config/challenge.json` integrity validation, official challenge workload execution, Metrics → Traces → Logs evidence chain investigation, root cause diagnosis, mitigation strategy, and final submission report compilation.
+Các thay đổi evidence/config ở lượt kiểm tra cuối cần được commit để SHA bài nộp cuối phản ánh đúng nội dung report này.

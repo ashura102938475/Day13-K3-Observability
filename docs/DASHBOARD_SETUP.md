@@ -1,6 +1,6 @@
 # Dựng và kiểm tra dashboard
 
-`config/dashboard.yaml` là contract chấm điểm dùng chung, không phụ thuộc việc nhóm dựng dashboard trong Langfuse hay một công cụ local. File này quy định đúng nguồn dữ liệu, phép tổng hợp, đơn vị và threshold cho sáu panel.
+`config/dashboard.yaml` là contract chấm điểm dùng chung. Implementation của dự án dùng Prometheus làm nguồn metrics, Grafana để hiển thị sáu panel và Jaeger để điều tra trace. File contract quy định logic dữ liệu, phép tổng hợp, đơn vị và threshold.
 
 Trường `query` trong YAML là pseudocode mô tả phép tính, không phải câu lệnh để copy nguyên vào mọi công cụ. Nhóm chuyển cùng logic đó sang cú pháp của công cụ đã chọn.
 
@@ -21,7 +21,7 @@ Giữ time range mặc định 60 phút, refresh 30 giây và hiển thị thres
 
 1. Hoàn thiện logging/PII và chạy API.
 2. Chạy `python scripts/load_test.py --concurrency 5` để tạo baseline.
-3. Dùng `data/logs.jsonl` làm nguồn chuẩn để tạo đúng sáu panel bằng Streamlit, notebook, Grafana hoặc công cụ tương đương. Langfuse vẫn là nơi mở trace/prompt version để điều tra sâu.
+3. Prometheus scrape `/metrics`; Grafana dùng các PromQL tương đương với contract để dựng đúng sáu panel. Dùng Jaeger để mở trace và xác minh prompt version khi điều tra sâu.
 4. Đặt tên panel, đơn vị và threshold giống contract.
 5. Chạy validator:
 

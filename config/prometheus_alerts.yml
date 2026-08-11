@@ -3,6 +3,7 @@ groups:
     rules:
       - alert: Lab13LatencyP95SLOBreach
         expr: histogram_quantile(0.95, sum by (le) (rate(lab13_chat_request_duration_seconds_bucket{route="/chat"}[5m]))) * 1000 > 3000
+        for: 5m
         labels:
           severity: critical
           owner: observability-team
@@ -12,6 +13,7 @@ groups:
 
       - alert: Lab13ErrorRateSLOBreach
         expr: 100 * sum(rate(lab13_chat_errors_total{route="/chat"}[5m])) / clamp_min(sum(rate(lab13_chat_requests_total{route="/chat"}[5m])), 0.000001) > 2
+        for: 5m
         labels:
           severity: critical
           owner: observability-team
@@ -21,6 +23,7 @@ groups:
 
       - alert: Lab13DailyCostSLOBreach
         expr: sum(increase(lab13_llm_cost_usd_total[24h])) > 2.5
+        for: 15m
         labels:
           severity: warning
           owner: observability-team

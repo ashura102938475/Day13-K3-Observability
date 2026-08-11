@@ -4,7 +4,7 @@ slis:
   latency_p95_ms:
     objective: 3000
     target: 99.5
-    note: Replace with your group's target
+    note: Chat P95 should stay below 3000 ms for at least 99.5 percent of the 28-day window.
   error_rate_pct:
     objective: 2
     target: 99.0

@@ -6,4 +6,5 @@ data/logs.jsonl
 data/audit.jsonl
 .env
 .pytest_cache/
+.review-pytest-tmp/
 .antigravity/

@@ -6,16 +6,18 @@
     "last_error": ""
   },
   "samples": {
-    "lab13_chat_requests_total_success": 11,
-    "lab13_chat_request_duration_seconds_count": 11,
-    "lab13_llm_tokens_total_input": 359,
-    "lab13_llm_tokens_total_output": 1400,
-    "lab13_llm_cost_usd_total": 0.022077,
-    "lab13_chat_quality_score_count": 11
+    "lab13_chat_requests_total_success": 12,
+    "lab13_chat_requests_total_error": 3,
+    "lab13_chat_errors_total_RuntimeError": 3,
+    "lab13_chat_request_duration_seconds_count": 15,
+    "lab13_llm_tokens_total_input": 385,
+    "lab13_llm_tokens_total_output": 1572,
+    "lab13_llm_cost_usd_total": 0.024735,
+    "lab13_chat_quality_score_count": 12
   },
   "alert_rules": [
-    {"name": "Lab13LatencyP95SLOBreach", "health": "ok"},
-    {"name": "Lab13ErrorRateSLOBreach", "health": "ok"},
-    {"name": "Lab13DailyCostSLOBreach", "health": "ok"}
+    {"name": "Lab13LatencyP95SLOBreach", "health": "ok", "state": "inactive", "for_seconds": 300},
+    {"name": "Lab13ErrorRateSLOBreach", "health": "ok", "state": "inactive", "for_seconds": 300},
+    {"name": "Lab13DailyCostSLOBreach", "health": "ok", "state": "inactive", "for_seconds": 900}
   ]
 }
